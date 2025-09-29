@@ -1,0 +1,7 @@
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"  # good default for TS/ESM
+
+[build]
+  command = "vite build"
+  publish = "dist"
