@@ -16,13 +16,41 @@ export default function Dropzone() {
   const [progress, setProgress] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [fileInputKey, setFileInputKey] = useState(0); // Force input reset
+  const [isDragging, setIsDragging] = useState(false);
   const lastUploadRef = useRef(0);
 
   const reset = useCallback(() => {
     setError("");
     setResult(null);
     setProgress("");
+    setFileInputKey(prev => prev + 1); // Reset file input
   }, []);
+
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!busy) setIsDragging(true);
+  }, [busy]);
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    if (busy) return;
+    
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      onSelect(files[0]);
+    }
+  }, [busy]);
 
   const onSelect = useCallback(async (file) => {
     reset();
@@ -129,43 +157,57 @@ export default function Dropzone() {
 
   return (
     <div className="card">
-      <div className="drop">
-        <label 
-          htmlFor="file-upload" 
-          style={{ 
-            display: "block",
+      <label 
+        htmlFor="file-upload"
+        className="drop"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{
+          display: "block",
+          cursor: busy ? "not-allowed" : "pointer",
+          opacity: busy ? 0.6 : 1,
+          border: isDragging ? "2px solid var(--accent)" : "2px dashed var(--primary)",
+          background: isDragging ? "rgba(223, 101, 77, 0.1)" : "white",
+          transition: "all 0.2s ease"
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <p style={{ 
+            marginTop: 0,
             marginBottom: "0.75rem",
             fontWeight: 600, 
-            color: "var(--primary)",
-            cursor: "pointer"
-          }}
-        >
-          📄 Upload a document
-        </label>
-        
-        <input
-          id="file-upload"
-          type="file"
-          accept={Object.keys(ACCEPT).join(",")}
-          onChange={(e) => onSelect(e.target.files?.[0] || null)}
-          disabled={busy}
-          aria-describedby="file-instructions"
-          style={{ marginBottom: "0.75rem" }}
-        />
-        
-        <p 
-          id="file-instructions" 
-          style={{ 
-            opacity: 0.8, 
-            marginBottom: 0,
-            fontSize: "0.9rem" 
-          }}
-        >
-          Accepts PDF, PNG, JPG, WEBP — max {MAX_MB} MB<br/>
-          Images are automatically optimized to 800px and converted to JPEG.<br/>
-          <em>We don't store your file. Parsed data goes to your private Google Sheet.</em>
-        </p>
-      </div>
+            color: isDragging ? "var(--accent)" : "var(--primary)",
+            fontSize: "1.1rem"
+          }}>
+            {isDragging ? "📥 Drop file here" : "📄 Upload a document"}
+          </p>
+          
+          <input
+            id="file-upload"
+            key={fileInputKey}
+            type="file"
+            accept={Object.keys(ACCEPT).join(",")}
+            onChange={(e) => onSelect(e.target.files?.[0] || null)}
+            disabled={busy}
+            aria-describedby="file-instructions"
+            style={{ display: "block", margin: "0 auto 0.75rem" }}
+          />
+          
+          <p 
+            id="file-instructions" 
+            style={{ 
+              opacity: 0.8, 
+              marginBottom: 0,
+              fontSize: "0.9rem" 
+            }}
+          >
+            Accepts PDF, PNG, JPG, WEBP — max {MAX_MB} MB<br/>
+            Images are automatically optimized to 800px and converted to JPEG.<br/>
+            <em>We don't store your file. Parsed data goes to your private Google Sheet.</em>
+          </p>
+        </div>
+      </label>
 
       {busy && (
         <div style={{ 
@@ -256,6 +298,25 @@ export default function Dropzone() {
               {result.result.date_expiry && <><strong>Expiry:</strong> {result.result.date_expiry}</>}
             </div>
           )}
+          
+          <a 
+            href="https://docs.google.com/spreadsheets/d/1BRCQE9HO3N4kUZT-3OLAUddcSqCDpFfEHBxdhferuig/edit?gid=1127136393#gid=1127136393"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-block",
+              padding: "0.5rem 1rem",
+              background: "var(--primary)",
+              color: "white",
+              borderRadius: "6px",
+              textDecoration: "none",
+              fontWeight: 600,
+              marginTop: "0.75rem",
+              marginBottom: "0.75rem"
+            }}
+          >
+            📊 View in Google Sheet
+          </a>
           
           <details style={{ marginTop: "0.75rem" }}>
             <summary style={{ 

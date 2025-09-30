@@ -199,8 +199,19 @@ export const handler: Handler = async (event) => {
         throw new Error("Apps Script GET returned HTML (likely wrong URL or permissions).");
       }
       const hashJson = JSON.parse(hashText) as { rows: { timestamp: string; file_hash: string }[] };
-      isDupWithin7Days =
-        hashJson.rows?.some((r) => r.timestamp && daysBetween(r.timestamp, new Date().toISOString()) <= 7) || false;
+      
+      // Check if any matching rows exist within 7 days
+      const now = new Date();
+      isDupWithin7Days = hashJson.rows?.some((r) => {
+        if (!r.timestamp || !r.file_hash) return false;
+        if (r.file_hash !== body.file.file_hash) return false;
+        const rowDate = new Date(r.timestamp);
+        const daysDiff = daysBetween(rowDate.toISOString(), now.toISOString());
+        console.log('[Duplicate check]', { hash: r.file_hash, timestamp: r.timestamp, daysDiff });
+        return daysDiff <= 7;
+      }) || false;
+      
+      console.log('[Duplicate check result]', { isDupWithin7Days, matchCount: hashJson.rows?.length || 0 });
     } catch (dupErr: any) {
       console.warn('[Duplicate check failed]', dupErr.message);
       // Non-fatal; continue without duplicate knowledge
