@@ -211,7 +211,10 @@ export const handler: Handler = async (event) => {
     
     const inputImgs = body.images.slice(0, 2).map((dataUrl) => ({
       type: "image_url" as const,
-      image_url: { url: dataUrl },
+      image_url: { 
+        url: dataUrl,
+        detail: "high" as const // OpenAI will auto-scale based on complexity
+      },
     }));
 
     const baseMsg = { 
