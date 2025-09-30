@@ -1,7 +1,7 @@
 // src/components/Dropzone.jsx
 import { useState, useCallback } from "react";
-import { pdfToPageDataURLs } from "../ lib/pdf";
-import { sha256File } from "../ lib/hash";
+import { pdfToPageDataURLs } from "../lib/pdf";
+import { sha256File } from "../lib/hash";
 
 const ACCEPT = {
   "application/pdf": [".pdf"],
