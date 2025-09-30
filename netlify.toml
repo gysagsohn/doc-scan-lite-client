@@ -1,7 +1,19 @@
 [functions]
   directory = "netlify/functions"
-  node_bundler = "esbuild"  # good default for TS/ESM
+  node_bundler = "esbuild"
+  external_node_modules = ["openai", "pdfjs-dist"]
+
+[dev]
+  functions = "netlify/functions"
+  functionsPort = 9999
+  # Increase timeout for local dev
+  functions_timeout = 30
 
 [build]
   command = "vite build"
   publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
