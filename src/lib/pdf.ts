@@ -19,7 +19,7 @@ export async function pdfToPageDataURLs(
   file: File, 
   maxPages = 2, 
   scale = 1.5,
-  maxDimension = 1600
+  maxDimension = 800
 ): Promise<string[]> {
   const arrayBuf = await file.arrayBuffer();
   const pdf = await (pdfjsLib as any).getDocument({ data: arrayBuf }).promise;
@@ -50,8 +50,8 @@ export async function pdfToPageDataURLs(
 
     await page.render({ canvasContext: ctx, viewport }).promise;
     
-    // Use JPEG with 85% quality for smaller file size
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    // Use JPEG with 70% quality for smaller file size
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
     urls.push(dataUrl);
     
     // Clean up

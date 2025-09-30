@@ -35,6 +35,7 @@ Output STRICT JSON matching the provided schema.
 - If ambiguous, set document_number null and include all candidates in extras.identifiers[] with labels and confidences.
 - Include document_number_type describing the chosen primary (e.g., "licence_number", "certificate_number", "policy_number", "card_number").
 - Put additional fields (e.g., licence_class, state, dob, address) into extras.
+- If date_issued is not clearly visible on the document, set it to null. Do not infer dates.
 Return ONLY valid JSON.
 `.trim();
 
@@ -224,7 +225,7 @@ export const handler: Handler = async (event) => {
       type: "image_url" as const,
       image_url: { 
         url: dataUrl,
-        detail: "high" as const // OpenAI will auto-scale based on complexity
+        detail: "low" as const // OpenAI will auto-scale based on complexity
       },
     }));
 
