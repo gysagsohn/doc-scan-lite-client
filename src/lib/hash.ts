@@ -1,4 +1,4 @@
-// src/lib/hash.ts
+
 export async function sha256File(file: File): Promise<string> {
   const buf = await file.arrayBuffer();
   const digest = await crypto.subtle.digest("SHA-256", buf);

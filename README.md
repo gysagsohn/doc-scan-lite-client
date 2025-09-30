@@ -77,3 +77,16 @@ npm run dev
 netlify functions:serve
 # → http://localhost:9999/.netlify/functions/extract
 ```
+
+The Dropzone is configured to call:
+- http://localhost:9999/.netlify/functions/extract in dev
+- /.netlify/functions/extract in production
+
+## Deploy
+1. Push to GitHub.
+2. Connect repo to Netlify
+3. In Netlify → Site settings → Environment variables, set:
+- OPENAI_API_KEY
+- OPENAI_MODEL
+- APPS_SCRIPT_URL
+4. Netlify will build with Vite and deploy functions from netlify/functions.
