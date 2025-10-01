@@ -62,11 +62,9 @@ export function saveDocument(document) {
     if (existingIndex >= 0) {
       // Update existing document (reprocessed duplicate)
       docs[existingIndex] = document;
-      console.log("[Storage] Updated existing document:", newDocHash);
     } else {
       // Add new document
       docs.push(document);
-      console.log("[Storage] Saved new document:", newDocHash);
     }
     
     const data = {
@@ -102,7 +100,6 @@ export function saveDocument(document) {
 export function clearAllDocuments() {
   try {
     localStorage.removeItem(STORAGE_KEY);
-    console.log("[Storage] Cleared all documents");
     
     // Trigger storage event
     window.dispatchEvent(new Event('doc-scan-storage-updated'));

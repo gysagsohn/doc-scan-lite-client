@@ -18,7 +18,6 @@ export default function DataManager({ onDataChange }) {
   // Listen for storage changes from other components
   useEffect(() => {
     const handleStorageUpdate = () => {
-      console.log('[DataManager] Storage updated, refreshing stats');
       refreshStats();
     };
 
@@ -37,21 +36,13 @@ export default function DataManager({ onDataChange }) {
     try {
       const docs = getAllDocuments();
       
-      console.log('[Export] Document count:', docs.length);
-      console.log('[Export] Documents:', docs);
-      
       if (docs.length === 0) {
         alert("No data to export");
         return;
       }
 
       const csvContent = documentsToCSV(docs);
-      console.log('[Export] CSV content length:', csvContent.length);
-      console.log('[Export] CSV preview:', csvContent.substring(0, 200));
-      
       downloadCSV(csvContent);
-      
-      console.log(`[Export] Exported ${docs.length} documents`);
     } catch (err) {
       console.error("[Export] Error:", err);
       alert(`Export failed: ${err.message}`);
@@ -80,7 +71,6 @@ export default function DataManager({ onDataChange }) {
 
       if (importMode === "replace") {
         clearAllDocuments();
-        console.log("[Import] Cleared existing data (replace mode)");
       }
 
       let savedCount = 0;
@@ -95,7 +85,6 @@ export default function DataManager({ onDataChange }) {
 
         if (importMode === "merge" && existingDoc) {
           skippedCount++;
-          console.log(`[Import] Skipped duplicate:`, doc.file_hash);
         } else {
           const success = saveDocument(doc);
           if (success) {
@@ -122,8 +111,6 @@ export default function DataManager({ onDataChange }) {
       });
 
       setTimeout(() => setImportStatus(null), 5000);
-      
-      console.log(`[Import] Mode: ${importMode}, New: ${savedCount}, Updated: ${updatedCount}, Skipped: ${skippedCount}`);
     } catch (err) {
       console.error("[Import] Error:", err);
       setImportStatus({
@@ -139,7 +126,6 @@ export default function DataManager({ onDataChange }) {
     if (success) {
       refreshStats();
       setShowClearConfirm(false);
-      console.log("[DataManager] Cleared all data");
     } else {
       alert("Failed to clear data");
     }
