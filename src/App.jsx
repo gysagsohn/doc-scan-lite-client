@@ -5,7 +5,7 @@ import DataManager from "./components/DataManager";
 import WarningBanner from "./components/WarningBanner";
 import AdminMode from "./components/AdminMode";
 import ErrorBoundary from "./components/ErrorBoundary";
-import styles from "./styles/App.module.css";
+import styles from "./styles/AdminMode.module.css";
 import "./styles/theme.css";
 
 export default function App() {
