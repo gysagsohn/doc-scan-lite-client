@@ -19,12 +19,18 @@ export default function DataManager({ onDataChange }) {
     try {
       const docs = getAllDocuments();
       
+      console.log('[Export] Document count:', docs.length);
+      console.log('[Export] Documents:', docs);
+      
       if (docs.length === 0) {
         alert("No data to export");
         return;
       }
 
       const csvContent = documentsToCSV(docs);
+      console.log('[Export] CSV content length:', csvContent.length);
+      console.log('[Export] CSV preview:', csvContent.substring(0, 200));
+      
       downloadCSV(csvContent);
       
       console.log(`[Export] Exported ${docs.length} documents`);

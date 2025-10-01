@@ -30,6 +30,9 @@ export function documentsToCSV(documents) {
   ];
 
   const rows = documents.map(doc => {
+    // Handle nested file object
+    const fileObj = doc.file || {};
+    
     return [
       doc.timestamp || "",
       doc.document_type || "",
@@ -39,10 +42,10 @@ export function documentsToCSV(documents) {
       doc.document_number || "",
       doc.document_number_type || "",
       doc.issuer || "",
-      doc.file_name || "",
-      doc.mime_type || "",
-      doc.file_size || "",
-      doc.file_hash || "",
+      fileObj.file_name || doc.file_name || "",
+      fileObj.mime_type || doc.mime_type || "",
+      fileObj.file_size || doc.file_size || "",
+      fileObj.file_hash || doc.file_hash || "",
       JSON.stringify(doc.extras || {}),
       JSON.stringify(doc.confidence || {}),
       JSON.stringify(doc.audit || {})
