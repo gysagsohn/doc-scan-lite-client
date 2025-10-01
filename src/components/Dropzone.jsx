@@ -23,6 +23,10 @@ export default function Dropzone({ adminMode = false }) {
   const [duplicateModal, setDuplicateModal] = useState(null);
   const lastUploadRef = useRef(0);
   const pendingFileRef = useRef(null);
+  const adminModeRef = useRef(adminMode);
+
+  // Keep adminMode in sync via ref to avoid dependency issues
+  adminModeRef.current = adminMode;
 
   const reset = useCallback(() => {
     setError("");
@@ -71,6 +75,7 @@ export default function Dropzone({ adminMode = false }) {
           setDuplicateModal(existingDoc);
           pendingFileRef.current = { file, images, file_hash };
           setBusy(false);
+          setProgress("");
           return;
         }
       }
@@ -82,7 +87,7 @@ export default function Dropzone({ adminMode = false }) {
         throw new Error(`Images still too large after processing: ${(totalPayloadSize / 1024 / 1024).toFixed(2)}MB. Please use a smaller file.`);
       }
       
-      // Always call backend for AI extraction
+      // Use ref to get current adminMode value
       const payload = {
         images,
         file: {
@@ -91,7 +96,7 @@ export default function Dropzone({ adminMode = false }) {
           file_size: file.size,
           file_hash,
         },
-        skipGoogleSheets: !adminMode // Skip Google Sheets unless admin mode is on
+        skipGoogleSheets: !adminModeRef.current
       };
 
       const fnUrl = "/.netlify/functions/extract";
@@ -130,7 +135,7 @@ export default function Dropzone({ adminMode = false }) {
     } finally {
       setBusy(false);
     }
-  }, [adminMode]);
+  }, []); // No dependencies - uses refs instead
 
   const onSelect = useCallback(async (file) => {
     reset();
@@ -159,7 +164,7 @@ export default function Dropzone({ adminMode = false }) {
 
   const handleUseCached = useCallback(() => {
     if (duplicateModal) {
-      console.log('[Using cached data]', duplicateModal.file_hash);
+      console.log('[Using cached data]', duplicateModal.file_hash || duplicateModal.file?.file_hash);
       setResult({ ok: true, result: duplicateModal, fromCache: true });
       setDuplicateModal(null);
       pendingFileRef.current = null;
@@ -360,7 +365,7 @@ export default function Dropzone({ adminMode = false }) {
               </div>
             )}
             
-            {adminMode && !result.fromCache && (
+            {adminModeRef.current && !result.fromCache && (
               <a 
                 href="https://docs.google.com/spreadsheets/d/1BRCQE9HO3N4kUZT-3OLAUddcSqCDpFfEHBxdhferuig/edit?gid=1127136393#gid=1127136393"
                 target="_blank"
