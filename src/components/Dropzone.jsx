@@ -4,6 +4,7 @@ import { pdfToPageDataURLs } from "../lib/pdf";
 import { sha256File } from "../lib/hash";
 import { findDocumentByHash, saveDocument } from "../lib/storage";
 import DuplicateModal from "./DuplicateModal";
+import NonDocumentModal from "./NonDocumentModal";
 import styles from "../styles/Dropzone.module.css";
 
 const ACCEPT = {
@@ -14,6 +15,9 @@ const MAX_MB = 10;
 const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/jpg", "image/webp"];
 const RATE_LIMIT_MS = 5000;
 
+// Confidence threshold for pre-check
+const CONFIDENCE_THRESHOLD = 0.6; // If confidence < 60%, show warning modal
+
 export default function Dropzone({ adminMode = false }) {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
@@ -22,6 +26,7 @@ export default function Dropzone({ adminMode = false }) {
   const [fileInputKey, setFileInputKey] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [duplicateModal, setDuplicateModal] = useState(null);
+  const [nonDocumentModal, setNonDocumentModal] = useState(null);
   const lastUploadRef = useRef(0);
   const pendingFileRef = useRef(null);
   const adminModeRef = useRef(adminMode);
@@ -34,10 +39,11 @@ export default function Dropzone({ adminMode = false }) {
     setProgress("");
     setFileInputKey(prev => prev + 1);
     setDuplicateModal(null);
+    setNonDocumentModal(null);
     pendingFileRef.current = null;
   }, []);
 
-  const processFile = useCallback(async (file, forceReprocess = false) => {
+  const processFile = useCallback(async (file, forceReprocess = false, skipPreCheck = false) => {
     try {
       setBusy(true);
       setProgress("Reading file...");
@@ -56,6 +62,58 @@ export default function Dropzone({ adminMode = false }) {
         setError("Unsupported file type");
         setBusy(false);
         return;
+      }
+
+      // PRE-CHECK: Verify it's a document (unless skipped via override)
+      if (!skipPreCheck) {
+        setProgress("Checking if this is a valid document type...");
+        
+        try {
+          const preCheckRes = await fetch("/.netlify/functions/pre-check", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: images[0] }), // Check first image only
+          });
+
+          const preCheckJson = await preCheckRes.json();
+
+          // Handle API budget errors
+          if (!preCheckRes.ok) {
+            if (preCheckJson.error === "insufficient_quota") {
+              setError(preCheckJson.userMessage);
+              setBusy(false);
+              return;
+            }
+            
+            if (preCheckJson.error === "rate_limit_exceeded") {
+              setError(preCheckJson.userMessage);
+              setBusy(false);
+              return;
+            }
+
+            // For other errors, warn but allow continuation
+            console.warn('[PreCheck] Failed:', preCheckJson.error);
+            setProgress("Pre-check failed, continuing anyway...");
+          } else {
+            const { is_document, confidence, detected_type, reasoning } = preCheckJson.result;
+
+            // If not a document OR low confidence, show warning modal
+            if (!is_document || confidence < CONFIDENCE_THRESHOLD) {
+              setNonDocumentModal({
+                detectedType: detected_type,
+                confidence: confidence,
+                reasoning: reasoning
+              });
+              pendingFileRef.current = { file, images };
+              setBusy(false);
+              setProgress("");
+              return;
+            }
+          }
+        } catch (preCheckErr) {
+          console.warn('[PreCheck] Network error:', preCheckErr);
+          // Continue anyway - better to process than block on pre-check failure
+        }
       }
 
       setProgress("Computing file hash...");
@@ -103,6 +161,15 @@ export default function Dropzone({ adminMode = false }) {
       const json = await res.json();
       
       if (!res.ok) {
+        // Handle budget errors from main extraction
+        if (json.error === "insufficient_quota") {
+          throw new Error(json.userMessage);
+        }
+        
+        if (json.error === "rate_limit_exceeded") {
+          throw new Error(json.userMessage);
+        }
+
         const errorMsg = json.error || "Server error";
         const hint = json.hint ? `\n\n💡 ${json.hint}` : "";
         throw new Error(`${errorMsg}${hint}`);
@@ -117,6 +184,7 @@ export default function Dropzone({ adminMode = false }) {
       setResult(json);
       setProgress("");
       setDuplicateModal(null);
+      setNonDocumentModal(null);
       pendingFileRef.current = null;
     } catch (e) {
       console.error('[Upload Error]', e.message);
@@ -152,7 +220,7 @@ export default function Dropzone({ adminMode = false }) {
     }
 
     lastUploadRef.current = now;
-    await processFile(file, false);
+    await processFile(file, false, false);
   }, [reset, processFile]);
 
   const handleUseCached = useCallback(() => {
@@ -166,12 +234,27 @@ export default function Dropzone({ adminMode = false }) {
   const handleReprocess = useCallback(async () => {
     if (pendingFileRef.current) {
       setDuplicateModal(null);
-      await processFile(pendingFileRef.current.file, true);
+      await processFile(pendingFileRef.current.file, true, true); // Skip pre-check on reprocess
     }
   }, [processFile]);
 
   const handleCancelDuplicate = useCallback(() => {
     setDuplicateModal(null);
+    pendingFileRef.current = null;
+    reset();
+  }, [reset]);
+
+  // Non-document modal handlers
+  const handleNonDocumentContinue = useCallback(async () => {
+    if (pendingFileRef.current) {
+      setNonDocumentModal(null);
+      // Skip pre-check since user overrode the warning
+      await processFile(pendingFileRef.current.file, false, true);
+    }
+  }, [processFile]);
+
+  const handleNonDocumentCancel = useCallback(() => {
+    setNonDocumentModal(null);
     pendingFileRef.current = null;
     reset();
   }, [reset]);
@@ -227,6 +310,16 @@ export default function Dropzone({ adminMode = false }) {
         />
       )}
 
+      {nonDocumentModal && (
+        <NonDocumentModal
+          detectedType={nonDocumentModal.detectedType}
+          confidence={nonDocumentModal.confidence}
+          reasoning={nonDocumentModal.reasoning}
+          onContinue={handleNonDocumentContinue}
+          onCancel={handleNonDocumentCancel}
+        />
+      )}
+
       <div className={styles.card}>
         <label 
           htmlFor="file-upload"
@@ -252,9 +345,9 @@ export default function Dropzone({ adminMode = false }) {
             />
             
             <p id="file-instructions" className={styles.instructions}>
-              Accepts PDF, PNG, JPG, WEBP — max {MAX_MB} MB<br/>
-              Images are automatically optimized to 800px and converted to JPEG.<br/>
-              <em>Duplicate files are detected automatically to save API costs.</em>
+              <strong>Supported:</strong> Driver licenses, passports, work certificates (White Card, HRWL, VOC), insurance certificates<br/>
+              Max {MAX_MB} MB — Images auto-optimized to 800px JPEG<br/>
+              <em>Duplicate files detected automatically to save API costs.</em>
             </p>
           </div>
         </label>

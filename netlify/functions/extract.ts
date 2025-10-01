@@ -229,21 +229,55 @@ export const handler: Handler = async (event) => {
     };
 
     const openaiStart = Date.now();
-    const completion1 = await openai.chat.completions.create({
-      model: MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { 
-          role: "user", 
-          content: [
-            baseMsg,
-            ...inputImgs
-          ] as Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>
-        },
-      ],
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-    });
+    let completion1;
+    
+    try {
+      completion1 = await openai.chat.completions.create({
+        model: MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { 
+            role: "user", 
+            content: [
+              baseMsg,
+              ...inputImgs
+            ] as Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>
+          },
+        ],
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+      });
+    } catch (openaiErr: any) {
+      // Handle OpenAI-specific errors
+      console.error('[OpenAI] Error', openaiErr);
+
+      if (openaiErr.status === 429 || openaiErr.code === 'rate_limit_exceeded') {
+        return withCors(429, {
+          error: "rate_limit_exceeded",
+          userMessage: "Too many requests right now. Please wait a minute and try again.",
+          retryable: true
+        }, reqId);
+      }
+
+      if (openaiErr.status === 401 || openaiErr.code === 'invalid_api_key') {
+        return withCors(503, {
+          error: "invalid_api_key",
+          userMessage: "API configuration error. Please contact the developer.",
+          retryable: false
+        }, reqId);
+      }
+
+      if (openaiErr.code === 'insufficient_quota' || openaiErr.message?.includes('quota') || openaiErr.message?.includes('billing')) {
+        return withCors(503, {
+          error: "insufficient_quota",
+          userMessage: "The developer has run out of API credits and needs to top up. Email gysagsohn@hotmail.com and tell them to stop being a tightass! 😅 (Auto top-up is disabled, so manual intervention required.)",
+          retryable: false
+        }, reqId);
+      }
+
+      // Generic OpenAI error
+      throw openaiErr;
+    }
 
     console.log('[OpenAI] Completed', { 
       duration: Date.now() - openaiStart,
