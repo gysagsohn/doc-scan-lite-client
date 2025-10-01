@@ -172,17 +172,19 @@ export const handler: Handler = async (event) => {
       }, reqId);
     }
 
+    const skipGoogleSheetsSync = body.skipGoogleSheets === true;
+
     console.log('[Extract] Started', { 
       reqId, 
       fileSize: body.file.file_size,
       imageCount: body.images.length,
       base64Size: `${(totalBase64Size / 1024 / 1024).toFixed(2)}MB`,
-      skipGoogleSheets: body.skipGoogleSheets
+      skipGoogleSheets: skipGoogleSheetsSync
     });
 
     // Duplicate check via Apps Script GET (only if NOT skipping Google Sheets)
     let isDupWithin7Days = false;
-    if (!body.skipGoogleSheets) {
+    if (!skipGoogleSheetsSync) {
       try {
         const hashURL = `${APPS_SCRIPT_URL}?hash=${encodeURIComponent(body.file.file_hash)}`;
         const hashRes = await fetch(hashURL);
@@ -206,6 +208,8 @@ export const handler: Handler = async (event) => {
       } catch (dupErr: any) {
         console.warn('[Duplicate check failed]', dupErr.message);
       }
+    } else {
+      console.log('[Duplicate check] Skipped - Google Sheets sync disabled');
     }
 
     // OpenAI Vision call
@@ -283,11 +287,12 @@ export const handler: Handler = async (event) => {
       prompt_version: "v0.4",
       duplicate_within_days: isDupWithin7Days ? 7 : 0,
       request_id: reqId,
-      google_sheets_synced: !body.skipGoogleSheets
+      google_sheets_synced: !skipGoogleSheetsSync
     };
 
     // Only append to Google Sheet if not skipped (admin mode enabled)
-    if (!body.skipGoogleSheets) {
+    if (!skipGoogleSheetsSync) {
+      console.log('[Google Sheets] Writing to sheet (admin mode ON)');
       const sheetStart = Date.now();
       const postRes = await fetch(APPS_SCRIPT_URL, {
         method: "POST",
@@ -329,12 +334,12 @@ export const handler: Handler = async (event) => {
       }, reqId);
     } else {
       // Skipped Google Sheets - return just the parsed result
-      console.log('[Extract] Skipped Google Sheets (admin mode off). Total duration', Date.now() - startTime, 'ms');
+      console.log('[Google Sheets] Skipped (admin mode OFF). Total duration', Date.now() - startTime, 'ms');
       
       return withCors(200, { 
         ok: true, 
         duplicate: false,
-        sheet: { skipped: true }, 
+        sheet: { skipped: true, reason: "Admin mode disabled" }, 
         result: parsed 
       }, reqId);
     }
