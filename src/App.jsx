@@ -8,8 +8,18 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import "./styles/theme.css";
 
 export default function App() {
-  const [adminMode, setAdminMode] = useState(false);
+  const [adminMode, setAdminMode] = useState(() => {
+    // Persist admin mode state in localStorage
+    const saved = localStorage.getItem('admin-mode-enabled');
+    return saved === 'true';
+  });
   const [dataVersion, setDataVersion] = useState(0);
+
+  const handleAdminToggle = (enabled) => {
+    setAdminMode(enabled);
+    localStorage.setItem('admin-mode-enabled', String(enabled));
+    console.log('[Admin Mode]', enabled ? 'Enabled' : 'Disabled');
+  };
 
   const handleDataChange = () => {
     // Trigger re-render when data changes
@@ -44,9 +54,28 @@ export default function App() {
             padding: "0.75rem 1rem",
             marginBottom: "1rem",
             fontSize: "0.9rem",
-            textAlign: "center"
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center"
           }}>
-            <strong>Admin Mode Active:</strong> Documents will also sync to your private Google Sheet
+            <span>
+              <strong>🔐 Admin Mode Active:</strong> Documents will sync to Google Sheets
+            </span>
+            <button
+              onClick={() => handleAdminToggle(false)}
+              style={{
+                padding: "0.4rem 0.8rem",
+                background: "rgba(220, 38, 38, 0.9)",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontWeight: 600,
+                fontSize: "0.85rem"
+              }}
+            >
+              Disable Admin
+            </button>
           </div>
         )}
 
@@ -56,7 +85,7 @@ export default function App() {
         
         <DataManager onDataChange={handleDataChange} />
 
-        <AdminMode enabled={adminMode} onToggle={setAdminMode} />
+        <AdminMode enabled={adminMode} onToggle={handleAdminToggle} />
       </main>
     </ErrorBoundary>
   );
