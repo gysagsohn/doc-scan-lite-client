@@ -2,6 +2,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { getAllDocuments, clearAllDocuments, saveDocument, getStorageStats } from "../lib/storage";
 import { documentsToCSV, csvToDocuments, downloadCSV } from "../lib/csv";
+import styles from "../styles/DataManager.module.css";
 
 export default function DataManager({ onDataChange }) {
   const [stats, setStats] = useState(getStorageStats());
@@ -15,16 +16,12 @@ export default function DataManager({ onDataChange }) {
     if (onDataChange) onDataChange();
   }, [onDataChange]);
 
-  // Listen for storage changes from other components
   useEffect(() => {
     const handleStorageUpdate = () => {
       refreshStats();
     };
 
-    // Initial refresh
     refreshStats();
-
-    // Listen for custom storage update events
     window.addEventListener('doc-scan-storage-updated', handleStorageUpdate);
 
     return () => {
@@ -131,111 +128,78 @@ export default function DataManager({ onDataChange }) {
     }
   }, [refreshStats]);
 
-  return (
-    <div className="card" style={{ marginTop: "1.5rem" }}>
-      <h3 style={{ marginTop: 0, marginBottom: "1rem", color: "var(--primary)" }}>
-        Data Management
-      </h3>
+  const getStatusClass = () => {
+    if (!importStatus) return '';
+    if (importStatus.type === "success") return styles.statusSuccess;
+    if (importStatus.type === "error") return styles.statusError;
+    return styles.statusLoading;
+  };
 
-      {/* Storage Stats */}
-      <div style={{
-        background: "var(--surface)",
-        padding: "0.75rem 1rem",
-        borderRadius: "6px",
-        marginBottom: "1rem",
-        fontSize: "0.9rem"
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
+  return (
+    <div className={`card ${styles.container}`}>
+      <h3 className={styles.title}>Data Management</h3>
+
+      <div className={styles.statsContainer}>
+        <div className={styles.statRow}>
           <span>Stored documents:</span>
           <strong>{stats.count}</strong>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.25rem" }}>
+        <div className={styles.statRow}>
           <span>Storage used:</span>
           <strong>{stats.sizeKB} KB</strong>
         </div>
         {stats.oldestDate && (
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <div className={styles.statRow}>
             <span>Date range:</span>
-            <strong style={{ fontSize: "0.85rem" }}>
+            <strong className={styles.dateRange}>
               {new Date(stats.oldestDate).toLocaleDateString()} - {new Date(stats.newestDate).toLocaleDateString()}
             </strong>
           </div>
         )}
       </div>
 
-      {/* Import Status */}
       {importStatus && (
-        <div style={{
-          padding: "0.75rem",
-          borderRadius: "6px",
-          marginBottom: "1rem",
-          fontSize: "0.9rem",
-          background: importStatus.type === "success" 
-            ? "rgba(34, 197, 94, 0.1)"
-            : importStatus.type === "error"
-            ? "rgba(220, 38, 38, 0.1)"
-            : "var(--surface)",
-          border: importStatus.type === "success"
-            ? "1px solid rgba(34, 197, 94, 0.3)"
-            : importStatus.type === "error"
-            ? "1px solid rgba(220, 38, 38, 0.3)"
-            : "1px solid var(--border)"
-        }}>
+        <div className={`${styles.statusContainer} ${getStatusClass()}`}>
           {importStatus.message}
         </div>
       )}
 
-      {/* Export Button */}
       <button
         onClick={handleExport}
         disabled={stats.count === 0}
-        className="btn"
-        style={{
-          width: "100%",
-          marginBottom: "0.75rem",
-          background: "var(--primary)",
-          opacity: stats.count === 0 ? 0.5 : 1
-        }}
+        className={`btn ${styles.exportButton}`}
       >
         Export All Data to CSV ({stats.count} docs)
       </button>
 
-      {/* Import Section */}
-      <div style={{
-        border: "1px solid var(--border)",
-        borderRadius: "6px",
-        padding: "1rem",
-        marginBottom: "0.75rem"
-      }}>
-        <p style={{ marginTop: 0, marginBottom: "0.75rem", fontSize: "0.9rem", fontWeight: 600 }}>
-          Import from CSV
-        </p>
+      <div className={styles.importSection}>
+        <p className={styles.importTitle}>Import from CSV</p>
 
-        <div style={{ marginBottom: "0.75rem" }}>
-          <label style={{ display: "flex", alignItems: "center", marginBottom: "0.5rem", cursor: "pointer" }}>
+        <div className={styles.importModes}>
+          <label className={styles.modeLabel}>
             <input
               type="radio"
               name="importMode"
               value="merge"
               checked={importMode === "merge"}
               onChange={(e) => setImportMode(e.target.value)}
-              style={{ marginRight: "0.5rem" }}
+              className={styles.modeRadio}
             />
-            <span style={{ fontSize: "0.9rem" }}>
+            <span className={styles.modeText}>
               <strong>Merge:</strong> Keep existing data, skip duplicates by hash
             </span>
           </label>
 
-          <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+          <label className={styles.modeLabel}>
             <input
               type="radio"
               name="importMode"
               value="replace"
               checked={importMode === "replace"}
               onChange={(e) => setImportMode(e.target.value)}
-              style={{ marginRight: "0.5rem" }}
+              className={styles.modeRadio}
             />
-            <span style={{ fontSize: "0.9rem" }}>
+            <span className={styles.modeText}>
               <strong>Replace:</strong> Clear all existing data first
             </span>
           </label>
@@ -246,70 +210,32 @@ export default function DataManager({ onDataChange }) {
           type="file"
           accept=".csv"
           onChange={handleImportFile}
-          style={{ display: "none" }}
+          className={styles.fileInput}
         />
 
-        <button
-          onClick={handleImportClick}
-          className="btn"
-          style={{
-            width: "100%",
-            background: "var(--primary-600)"
-          }}
-        >
+        <button onClick={handleImportClick} className={`btn ${styles.importButton}`}>
           Choose CSV File to Import
         </button>
       </div>
 
-      {/* Clear All Button */}
       {!showClearConfirm ? (
         <button
           onClick={() => setShowClearConfirm(true)}
           disabled={stats.count === 0}
-          className="btn"
-          style={{
-            width: "100%",
-            background: "#dc2626",
-            opacity: stats.count === 0 ? 0.5 : 1
-          }}
+          className={`btn ${styles.clearButton}`}
         >
           Clear All Data
         </button>
       ) : (
-        <div style={{
-          background: "rgba(220, 38, 38, 0.1)",
-          border: "1px solid rgba(220, 38, 38, 0.3)",
-          borderRadius: "6px",
-          padding: "1rem"
-        }}>
-          <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.9rem", fontWeight: 600, color: "#991b1b" }}>
+        <div className={styles.confirmContainer}>
+          <p className={styles.confirmText}>
             Are you sure? This will permanently delete all {stats.count} documents from localStorage.
           </p>
-          <div style={{ display: "flex", gap: "0.75rem" }}>
-            <button
-              onClick={handleClearAll}
-              className="btn"
-              style={{
-                flex: 1,
-                background: "#dc2626",
-                fontSize: "0.9rem"
-              }}
-            >
+          <div className={styles.confirmButtons}>
+            <button onClick={handleClearAll} className={`btn ${styles.confirmYes}`}>
               Yes, Delete All
             </button>
-            <button
-              onClick={() => setShowClearConfirm(false)}
-              style={{
-                flex: 1,
-                padding: "0.6rem 1rem",
-                background: "white",
-                border: "1px solid var(--border)",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontWeight: 600,
-                fontSize: "0.9rem"
-              }}
-            >
+            <button onClick={() => setShowClearConfirm(false)} className={styles.confirmCancel}>
               Cancel
             </button>
           </div>

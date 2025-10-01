@@ -1,0 +1,192 @@
+/* src/styles/Dropzone.module.css */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.dropzone {
+  display: block;
+  border: 2px dashed var(--primary);
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.dropzone.dragging {
+  border: 2px solid var(--accent);
+  background: rgba(223, 101, 77, 0.1);
+}
+
+.dropzone.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.dropzone.enabled {
+  cursor: pointer;
+  opacity: 1;
+}
+
+.dropzoneContent {
+  text-align: center;
+}
+
+.dropzoneTitle {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.dropzoneTitle.dragging {
+  color: var(--accent);
+}
+
+.dropzoneTitle.normal {
+  color: var(--primary);
+}
+
+.fileInput {
+  display: block;
+  margin: 0 auto 0.75rem;
+}
+
+.instructions {
+  opacity: 0.8;
+  margin-bottom: 0;
+  font-size: 0.9rem;
+}
+
+.busyContainer {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--surface);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--border);
+  border-top: 3px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.progressText {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+.errorContainer {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 8px;
+  color: #991b1b;
+  text-align: center;
+}
+
+.errorMessage {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-family: monospace;
+  font-size: 0.9rem;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 0.75rem;
+  border-radius: 6px;
+}
+
+.errorButton {
+  font-size: 0.9rem;
+  padding: 0.4rem 0.8rem;
+}
+
+.resultContainer {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.resultTitle {
+  margin-top: 0;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.cachedBanner {
+  padding: 0.5rem;
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.documentInfo {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.sheetLink {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: var(--primary);
+  color: white;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.sheetLink:hover {
+  filter: brightness(0.9);
+}
+
+.jsonDetails {
+  margin-top: 0.75rem;
+}
+
+.jsonSummary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--primary);
+  user-select: none;
+}
+
+.jsonContent {
+  white-space: pre-wrap;
+  background: white;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  overflow: auto;
+  max-height: 400px;
+}
+
+.resetButton {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.8rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

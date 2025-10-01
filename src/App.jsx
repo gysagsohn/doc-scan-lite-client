@@ -5,6 +5,7 @@ import DataManager from "./components/DataManager";
 import WarningBanner from "./components/WarningBanner";
 import AdminMode from "./components/AdminMode";
 import ErrorBoundary from "./components/ErrorBoundary";
+import styles from "./styles/App.module.css";
 import "./styles/theme.css";
 
 export default function App() {
@@ -16,61 +17,26 @@ export default function App() {
   const handleAdminToggle = (enabled) => {
     setAdminMode(enabled);
     localStorage.setItem('admin-mode-enabled', String(enabled));
-    console.log('[Admin Mode]', enabled ? 'Enabled' : 'Disabled');
   };
 
   const handleDataChange = () => {
-    console.log('[App] Data changed - DataManager updated storage');
+    // Callback for when DataManager updates
   };
 
   return (
     <ErrorBoundary>
-      <main style={{ maxWidth: 720, margin: "0 auto", padding: "2rem" }}>
-        <h1 style={{ 
-          marginTop: 0, 
-          marginBottom: "0.5rem",
-          color: "var(--primary)",
-          textAlign: "center"
-        }}>
-          Doc Scan (Lite)
-        </h1>
-        <p style={{ 
-          marginTop: 0,
-          marginBottom: "1.5rem",
-          textAlign: "center",
-          opacity: 0.9
-        }}>
+      <main className={styles.main}>
+        <h1 className={styles.title}>Doc Scan (Lite)</h1>
+        <p className={styles.subtitle}>
           Upload a PDF or image. AI will parse key fields and save locally. {adminMode && "Google Sheets sync enabled."}
         </p>
 
         {adminMode && (
-          <div style={{
-            background: "rgba(59, 130, 246, 0.1)",
-            border: "1px solid rgba(59, 130, 246, 0.3)",
-            borderRadius: "8px",
-            padding: "0.75rem 1rem",
-            marginBottom: "1rem",
-            fontSize: "0.9rem",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center"
-          }}>
+          <div className={styles.adminBanner}>
             <span>
               <strong>🔐 Admin Mode Active:</strong> Documents will sync to Google Sheets
             </span>
-            <button
-              onClick={() => handleAdminToggle(false)}
-              style={{
-                padding: "0.4rem 0.8rem",
-                background: "rgba(220, 38, 38, 0.9)",
-                color: "white",
-                border: "none",
-                borderRadius: "6px",
-                cursor: "pointer",
-                fontWeight: 600,
-                fontSize: "0.85rem"
-              }}
-            >
+            <button onClick={() => handleAdminToggle(false)} className={styles.disableButton}>
               Disable Admin
             </button>
           </div>

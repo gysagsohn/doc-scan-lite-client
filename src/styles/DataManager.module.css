@@ -1,0 +1,152 @@
+/* src/styles/DataManager.module.css */
+
+.container {
+  margin-top: 1.5rem;
+}
+
+.title {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: var(--primary);
+}
+
+.statsContainer {
+  background: var(--surface);
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.dateRange {
+  font-size: 0.85rem;
+}
+
+.statusContainer {
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.statusSuccess {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.statusError {
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+}
+
+.statusLoading {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.exportButton {
+  width: 100%;
+  margin-bottom: 0.75rem;
+  background: var(--primary);
+}
+
+.exportButton:disabled {
+  opacity: 0.5;
+}
+
+.importSection {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.importTitle {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.importModes {
+  margin-bottom: 0.75rem;
+}
+
+.modeLabel {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+}
+
+.modeLabel:last-child {
+  margin-bottom: 0;
+}
+
+.modeRadio {
+  margin-right: 0.5rem;
+}
+
+.modeText {
+  font-size: 0.9rem;
+}
+
+.fileInput {
+  display: none;
+}
+
+.importButton {
+  width: 100%;
+  background: var(--primary-600);
+}
+
+.clearButton {
+  width: 100%;
+  background: #dc2626;
+}
+
+.clearButton:disabled {
+  opacity: 0.5;
+}
+
+.confirmContainer {
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.confirmText {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #991b1b;
+}
+
+.confirmButtons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.confirmYes {
+  flex: 1;
+  background: #dc2626;
+  font-size: 0.9rem;
+}
+
+.confirmCancel {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}

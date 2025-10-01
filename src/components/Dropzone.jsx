@@ -4,6 +4,7 @@ import { pdfToPageDataURLs } from "../lib/pdf";
 import { sha256File } from "../lib/hash";
 import { findDocumentByHash, saveDocument } from "../lib/storage";
 import DuplicateModal from "./DuplicateModal";
+import styles from "../styles/Dropzone.module.css";
 
 const ACCEPT = {
   "application/pdf": [".pdf"],
@@ -25,7 +26,6 @@ export default function Dropzone({ adminMode = false }) {
   const pendingFileRef = useRef(null);
   const adminModeRef = useRef(adminMode);
 
-  // Keep adminMode in sync via ref to avoid dependency issues
   adminModeRef.current = adminMode;
 
   const reset = useCallback(() => {
@@ -42,7 +42,6 @@ export default function Dropzone({ adminMode = false }) {
       setBusy(true);
       setProgress("Reading file...");
 
-      // Convert to image data URLs
       let images = [];
       if (file.type === "application/pdf") {
         setProgress("Converting PDF pages to images...");
@@ -62,7 +61,6 @@ export default function Dropzone({ adminMode = false }) {
       setProgress("Computing file hash...");
       const file_hash = await sha256File(file);
       
-      // Check for duplicate BEFORE calling OpenAI
       if (!forceReprocess) {
         const existingDoc = findDocumentByHash(file_hash);
         if (existingDoc) {
@@ -80,7 +78,6 @@ export default function Dropzone({ adminMode = false }) {
         throw new Error(`Images still too large after processing: ${(totalPayloadSize / 1024 / 1024).toFixed(2)}MB. Please use a smaller file.`);
       }
       
-      // Use ref to get current adminMode value
       const skipGoogleSheets = !adminModeRef.current;
       
       const payload = {
@@ -111,7 +108,6 @@ export default function Dropzone({ adminMode = false }) {
         throw new Error(`${errorMsg}${hint}`);
       }
 
-      // Save to localStorage
       const docToSave = {
         ...json.result,
         timestamp: new Date().toISOString(),
@@ -209,6 +205,17 @@ export default function Dropzone({ adminMode = false }) {
     onSelect(e.target.files?.[0] || null);
   }, [onSelect]);
 
+  const dropzoneClasses = [
+    styles.dropzone,
+    busy ? styles.disabled : styles.enabled,
+    isDragging ? styles.dragging : ''
+  ].filter(Boolean).join(' ');
+
+  const titleClasses = [
+    styles.dropzoneTitle,
+    isDragging ? styles.dragging : styles.normal
+  ].join(' ');
+
   return (
     <>
       {duplicateModal && (
@@ -220,30 +227,16 @@ export default function Dropzone({ adminMode = false }) {
         />
       )}
 
-      <div className="card">
+      <div className={styles.card}>
         <label 
           htmlFor="file-upload"
-          className="drop"
+          className={dropzoneClasses}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          style={{
-            display: "block",
-            cursor: busy ? "not-allowed" : "pointer",
-            opacity: busy ? 0.6 : 1,
-            border: isDragging ? "2px solid var(--accent)" : "2px dashed var(--primary)",
-            background: isDragging ? "rgba(223, 101, 77, 0.1)" : "white",
-            transition: "all 0.2s ease"
-          }}
         >
-          <div style={{ textAlign: "center" }}>
-            <p style={{ 
-              marginTop: 0,
-              marginBottom: "0.75rem",
-              fontWeight: 600, 
-              color: isDragging ? "var(--accent)" : "var(--primary)",
-              fontSize: "1.1rem"
-            }}>
+          <div className={styles.dropzoneContent}>
+            <p className={titleClasses}>
               {isDragging ? "Drop file here" : "Upload a document"}
             </p>
             
@@ -255,17 +248,10 @@ export default function Dropzone({ adminMode = false }) {
               onChange={handleFileInputChange}
               disabled={busy}
               aria-describedby="file-instructions"
-              style={{ display: "block", margin: "0 auto 0.75rem" }}
+              className={styles.fileInput}
             />
             
-            <p 
-              id="file-instructions" 
-              style={{ 
-                opacity: 0.8, 
-                marginBottom: 0,
-                fontSize: "0.9rem" 
-              }}
-            >
+            <p id="file-instructions" className={styles.instructions}>
               Accepts PDF, PNG, JPG, WEBP — max {MAX_MB} MB<br/>
               Images are automatically optimized to 800px and converted to JPEG.<br/>
               <em>Duplicate files are detected automatically to save API costs.</em>
@@ -274,89 +260,36 @@ export default function Dropzone({ adminMode = false }) {
         </label>
 
         {busy && (
-          <div style={{ 
-            marginTop: "1rem", 
-            padding: "1rem",
-            background: "var(--surface)",
-            borderRadius: "8px",
-            textAlign: "center"
-          }}>
-            <div className="spinner" style={{ 
-              display: "inline-block",
-              width: "20px",
-              height: "20px",
-              border: "3px solid var(--border)",
-              borderTop: "3px solid var(--primary)",
-              borderRadius: "50%",
-              animation: "spin 1s linear infinite"
-            }}/>
-            <p style={{ marginTop: "0.5rem", marginBottom: 0 }}>{progress}</p>
+          <div className={styles.busyContainer}>
+            <div className={styles.spinner} />
+            <p className={styles.progressText}>{progress}</p>
           </div>
         )}
 
         {error && (
-          <div style={{ 
-            marginTop: "1rem",
-            padding: "1rem",
-            background: "rgba(220, 38, 38, 0.1)",
-            border: "1px solid rgba(220, 38, 38, 0.3)",
-            borderRadius: "8px",
-            color: "#991b1b",
-            textAlign: "center"
-          }}>
+          <div className={styles.errorContainer}>
             <strong>Error:</strong>
-            <pre style={{ 
-              whiteSpace: "pre-wrap", 
-              wordBreak: "break-word",
-              marginTop: "0.5rem",
-              marginBottom: "0.75rem",
-              fontFamily: "monospace",
-              fontSize: "0.9rem",
-              textAlign: "left",
-              background: "rgba(255, 255, 255, 0.5)",
-              padding: "0.75rem",
-              borderRadius: "6px"
-            }}>
-              {error}
-            </pre>
-            <button 
-              onClick={reset} 
-              className="btn"
-              style={{ fontSize: "0.9rem", padding: "0.4rem 0.8rem" }}
-            >
+            <pre className={styles.errorMessage}>{error}</pre>
+            <button onClick={reset} className={`btn ${styles.errorButton}`}>
               Try Again
             </button>
           </div>
         )}
 
         {result && (
-          <div style={{ 
-            marginTop: "1rem", 
-            padding: "1rem",
-            background: "rgba(34, 197, 94, 0.1)",
-            border: "1px solid rgba(34, 197, 94, 0.3)",
-            borderRadius: "8px",
-            textAlign: "left" 
-          }}>
-            <p style={{ marginTop: 0, color: "var(--primary)", fontWeight: 600 }}>
+          <div className={styles.resultContainer}>
+            <p className={styles.resultTitle}>
               {result.fromCache ? "✅ Used cached data (instant!)" : "✅ Successfully processed!"}
             </p>
             
             {result.fromCache && (
-              <p style={{ 
-                padding: "0.5rem",
-                background: "rgba(34, 197, 94, 0.2)",
-                border: "1px solid rgba(34, 197, 94, 0.4)",
-                borderRadius: "6px",
-                fontSize: "0.9rem",
-                marginBottom: "0.75rem"
-              }}>
+              <p className={styles.cachedBanner}>
                 <strong>Saved API cost!</strong> This document was previously processed. No OpenAI call needed.
               </p>
             )}
 
             {result.result?.document_type && (
-              <div style={{ marginTop: "0.75rem", marginBottom: "0.75rem" }}>
+              <div className={styles.documentInfo}>
                 <strong>Document Type:</strong> {result.result.document_type}<br/>
                 {result.result.name_full && <><strong>Name:</strong> {result.result.name_full}<br/></>}
                 {result.result.document_number && <><strong>Number:</strong> {result.result.document_number}<br/></>}
@@ -369,54 +302,22 @@ export default function Dropzone({ adminMode = false }) {
                 href="https://docs.google.com/spreadsheets/d/1BRCQE9HO3N4kUZT-3OLAUddcSqCDpFfEHBxdhferuig/edit?gid=1127136393#gid=1127136393"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{
-                  display: "inline-block",
-                  padding: "0.5rem 1rem",
-                  background: "var(--primary)",
-                  color: "white",
-                  borderRadius: "6px",
-                  textDecoration: "none",
-                  fontWeight: 600,
-                  marginTop: "0.75rem",
-                  marginBottom: "0.75rem"
-                }}
+                className={styles.sheetLink}
               >
                 View in Google Sheet
               </a>
             )}
             
-            <details style={{ marginTop: "0.75rem" }}>
-              <summary style={{ 
-                cursor: "pointer",
-                fontWeight: 600,
-                color: "var(--primary)",
-                userSelect: "none"
-              }}>
+            <details className={styles.jsonDetails}>
+              <summary className={styles.jsonSummary}>
                 Show Full JSON
               </summary>
-              <pre style={{ 
-                whiteSpace: "pre-wrap",
-                background: "white",
-                padding: "0.75rem",
-                borderRadius: "6px",
-                marginTop: "0.5rem",
-                fontSize: "0.85rem",
-                overflow: "auto",
-                maxHeight: "400px"
-              }}>
+              <pre className={styles.jsonContent}>
                 {JSON.stringify(result.result, null, 2)}
               </pre>
             </details>
 
-            <button 
-              onClick={reset}
-              className="btn"
-              style={{ 
-                marginTop: "1rem",
-                fontSize: "0.9rem",
-                padding: "0.4rem 0.8rem"
-              }}
-            >
+            <button onClick={reset} className={`btn ${styles.resetButton}`}>
               Upload Another Document
             </button>
           </div>

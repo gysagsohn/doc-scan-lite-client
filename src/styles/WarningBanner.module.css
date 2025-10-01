@@ -1,0 +1,34 @@
+/* src/styles/WarningBanner.module.css */
+
+.banner {
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.closeButton {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: var(--text);
+  opacity: 0.6;
+  line-height: 1;
+  padding: 0.25rem;
+}
+
+.closeButton:hover {
+  opacity: 1;
+}
+
+.text {
+  margin: 0;
+  font-size: 0.9rem;
+  padding-right: 2rem;
+}
