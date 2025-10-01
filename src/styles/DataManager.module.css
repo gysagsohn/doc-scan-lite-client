@@ -1,38 +1,86 @@
 /* src/styles/DataManager.module.css */
 
 .container {
-  margin-top: 1.5rem;
+  margin-top: var(--spacing-lg);
 }
 
 .title {
   margin-top: 0;
-  margin-bottom: 1rem;
+  margin-bottom: var(--spacing-md);
   color: var(--primary);
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+@media (min-width: 500px) {
+  .title {
+    font-size: 1.25rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .title {
+    font-size: 1.5rem;
+  }
 }
 
 .statsContainer {
   background: var(--surface);
-  padding: 0.75rem 1rem;
+  padding: var(--spacing-sm) var(--spacing-md);
   border-radius: 6px;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
+  margin-bottom: var(--spacing-md);
+  font-size: 0.85rem;
+}
+
+@media (min-width: 500px) {
+  .statsContainer {
+    font-size: 0.9rem;
+    padding: var(--spacing-md);
+  }
 }
 
 .statRow {
   display: flex;
   justify-content: space-between;
   margin-bottom: 0.25rem;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.statRow:last-child {
+  margin-bottom: 0;
 }
 
 .dateRange {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+@media (min-width: 500px) {
+  .dateRange {
+    font-size: 0.8rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .dateRange {
+    font-size: 0.85rem;
+  }
 }
 
 .statusContainer {
-  padding: 0.75rem;
+  padding: var(--spacing-sm);
   border-radius: 6px;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
+  margin-bottom: var(--spacing-md);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+@media (min-width: 500px) {
+  .statusContainer {
+    font-size: 0.9rem;
+    padding: var(--spacing-md);
+  }
 }
 
 .statusSuccess {
@@ -52,8 +100,21 @@
 
 .exportButton {
   width: 100%;
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--spacing-sm);
   background: var(--primary);
+  font-size: 0.85rem;
+}
+
+@media (min-width: 500px) {
+  .exportButton {
+    font-size: 0.9rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .exportButton {
+    font-size: 1rem;
+  }
 }
 
 .exportButton:disabled {
@@ -63,26 +124,39 @@
 .importSection {
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 1rem;
-  margin-bottom: 0.75rem;
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+@media (min-width: 768px) {
+  .importSection {
+    padding: var(--spacing-lg);
+  }
 }
 
 .importTitle {
   margin-top: 0;
-  margin-bottom: 0.75rem;
-  font-size: 0.9rem;
+  margin-bottom: var(--spacing-sm);
+  font-size: 0.85rem;
   font-weight: 600;
 }
 
+@media (min-width: 500px) {
+  .importTitle {
+    font-size: 0.9rem;
+  }
+}
+
 .importModes {
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--spacing-sm);
 }
 
 .modeLabel {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 0.5rem;
   cursor: pointer;
+  gap: var(--spacing-xs);
 }
 
 .modeLabel:last-child {
@@ -90,11 +164,25 @@
 }
 
 .modeRadio {
-  margin-right: 0.5rem;
+  margin-top: 0.2rem;
+  flex-shrink: 0;
 }
 
 .modeText {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+@media (min-width: 500px) {
+  .modeText {
+    font-size: 0.85rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .modeText {
+    font-size: 0.9rem;
+  }
 }
 
 .fileInput {
@@ -104,11 +192,37 @@
 .importButton {
   width: 100%;
   background: var(--primary-600);
+  font-size: 0.85rem;
+}
+
+@media (min-width: 500px) {
+  .importButton {
+    font-size: 0.9rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .importButton {
+    font-size: 1rem;
+  }
 }
 
 .clearButton {
   width: 100%;
   background: #dc2626;
+  font-size: 0.85rem;
+}
+
+@media (min-width: 500px) {
+  .clearButton {
+    font-size: 0.9rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .clearButton {
+    font-size: 1rem;
+  }
 }
 
 .clearButton:disabled {
@@ -119,25 +233,45 @@
   background: rgba(220, 38, 38, 0.1);
   border: 1px solid rgba(220, 38, 38, 0.3);
   border-radius: 6px;
-  padding: 1rem;
+  padding: var(--spacing-md);
 }
 
 .confirmText {
-  margin: 0 0 0.75rem 0;
-  font-size: 0.9rem;
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: 0.85rem;
   font-weight: 600;
   color: #991b1b;
+  line-height: 1.4;
+}
+
+@media (min-width: 500px) {
+  .confirmText {
+    font-size: 0.9rem;
+  }
 }
 
 .confirmButtons {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--spacing-sm);
+  flex-direction: column;
+}
+
+@media (min-width: 500px) {
+  .confirmButtons {
+    flex-direction: row;
+  }
 }
 
 .confirmYes {
   flex: 1;
   background: #dc2626;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+}
+
+@media (min-width: 500px) {
+  .confirmYes {
+    font-size: 0.9rem;
+  }
 }
 
 .confirmCancel {
@@ -148,5 +282,16 @@
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  transition: background 0.2s ease;
+}
+
+@media (min-width: 500px) {
+  .confirmCancel {
+    font-size: 0.9rem;
+  }
+}
+
+.confirmCancel:hover {
+  background: var(--surface);
 }

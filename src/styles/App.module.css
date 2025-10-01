@@ -1,0 +1,125 @@
+/* src/styles/App.module.css */
+
+.main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--spacing-md);
+  width: 100%;
+}
+
+/* Tablet and up - increase horizontal padding */
+@media (min-width: 500px) {
+  .main {
+    padding: var(--spacing-lg) var(--spacing-xl);
+  }
+}
+
+/* Desktop - progressive margins */
+@media (min-width: 800px) {
+  .main {
+    padding: var(--spacing-xl) 3rem;
+    max-width: 680px;
+  }
+}
+
+@media (min-width: 900px) {
+  .main {
+    padding: var(--spacing-xl) 4rem;
+    max-width: 660px;
+  }
+}
+
+@media (min-width: 1020px) {
+  .main {
+    padding: var(--spacing-xl) 5rem;
+    max-width: 650px;
+  }
+}
+
+.title {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: var(--primary);
+  text-align: center;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+@media (min-width: 500px) {
+  .title {
+    font-size: 1.75rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .title {
+    font-size: 2rem;
+  }
+}
+
+.subtitle {
+  margin-top: 0;
+  margin-bottom: var(--spacing-lg);
+  text-align: center;
+  opacity: 0.9;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+@media (min-width: 500px) {
+  .subtitle {
+    font-size: 0.95rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .subtitle {
+    font-size: 1rem;
+  }
+}
+
+.adminBanner {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  align-items: stretch;
+}
+
+@media (min-width: 500px) {
+  .adminBanner {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+}
+
+.disableButton {
+  padding: 0.4rem 0.8rem;
+  background: rgba(220, 38, 38, 0.9);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  width: 100%;
+  transition: background 0.2s ease;
+}
+
+@media (min-width: 500px) {
+  .disableButton {
+    width: auto;
+  }
+}
+
+.disableButton:hover {
+  background: rgba(220, 38, 38, 1);
+}

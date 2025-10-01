@@ -4,15 +4,15 @@
   background: rgba(251, 191, 36, 0.15);
   border: 1px solid rgba(251, 191, 36, 0.4);
   border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
   position: relative;
 }
 
 .closeButton {
   position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
+  top: var(--spacing-xs);
+  right: var(--spacing-xs);
   background: transparent;
   border: none;
   font-size: 1.25rem;
@@ -21,6 +21,14 @@
   opacity: 0.6;
   line-height: 1;
   padding: 0.25rem;
+  transition: opacity 0.2s ease;
+}
+
+@media (min-width: 500px) {
+  .closeButton {
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+  }
 }
 
 .closeButton:hover {
@@ -29,6 +37,19 @@
 
 .text {
   margin: 0;
-  font-size: 0.9rem;
-  padding-right: 2rem;
+  font-size: 0.8rem;
+  padding-right: var(--spacing-xl);
+  line-height: 1.5;
+}
+
+@media (min-width: 500px) {
+  .text {
+    font-size: 0.85rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .text {
+    font-size: 0.9rem;
+  }
 }
