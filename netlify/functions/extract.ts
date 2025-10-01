@@ -9,6 +9,7 @@ const RAW_APPS_SCRIPT_URL = (process.env.APPS_SCRIPT_URL || "").trim();
 type ExtractReq = {
   images: string[];
   file: { file_name: string; mime_type: string; file_size: number; file_hash: string };
+  skipGoogleSheets?: boolean;
 };
 
 const schema = {
@@ -118,7 +119,6 @@ export const handler: Handler = async (event) => {
     return withCors(200, {}, reqId);
   }
 
-  // Diagnostic mode - accept GET requests
   if (event.httpMethod === "GET" && event.queryStringParameters?.diagnostic === 'true') {
     return withCors(200, {
       ok: true,
@@ -143,13 +143,12 @@ export const handler: Handler = async (event) => {
   } catch (e: any) {
     return withCors(500, {
       error: e?.message || "Invalid APPS_SCRIPT_URL",
-      hint:
-        "Open your Apps Script → Deploy → Manage deployments → copy the Web app URL that ends with /exec and set it in Netlify env APPS_SCRIPT_URL.",
+      hint: "Open your Apps Script → Deploy → Manage deployments → copy the Web app URL that ends with /exec and set it in Netlify env APPS_SCRIPT_URL.",
     }, reqId);
   }
 
   try {
-    const body = JSON.parse(event.body || "{}") as ExtractReq & { skipGoogleSheets?: boolean };
+    const body = JSON.parse(event.body || "{}") as ExtractReq;
     
     if (!body.images?.length || !body.file?.file_hash) {
       return withCors(400, { error: "images[] and file.file_hash required" }, reqId);
@@ -177,33 +176,36 @@ export const handler: Handler = async (event) => {
       reqId, 
       fileSize: body.file.file_size,
       imageCount: body.images.length,
-      base64Size: `${(totalBase64Size / 1024 / 1024).toFixed(2)}MB`
+      base64Size: `${(totalBase64Size / 1024 / 1024).toFixed(2)}MB`,
+      skipGoogleSheets: body.skipGoogleSheets
     });
 
-    // Duplicate check via Apps Script GET
+    // Duplicate check via Apps Script GET (only if NOT skipping Google Sheets)
     let isDupWithin7Days = false;
-    try {
-      const hashURL = `${APPS_SCRIPT_URL}?hash=${encodeURIComponent(body.file.file_hash)}`;
-      const hashRes = await fetch(hashURL);
-      const hashText = await hashRes.text();
-      if (isLikelyHtml(hashRes.headers.get("content-type"), hashText)) {
-        throw new Error("Apps Script GET returned HTML (likely wrong URL or permissions).");
+    if (!body.skipGoogleSheets) {
+      try {
+        const hashURL = `${APPS_SCRIPT_URL}?hash=${encodeURIComponent(body.file.file_hash)}`;
+        const hashRes = await fetch(hashURL);
+        const hashText = await hashRes.text();
+        if (isLikelyHtml(hashRes.headers.get("content-type"), hashText)) {
+          throw new Error("Apps Script GET returned HTML (likely wrong URL or permissions).");
+        }
+        const hashJson = JSON.parse(hashText) as { rows: { timestamp: string; file_hash: string }[] };
+        
+        const now = new Date();
+        isDupWithin7Days = hashJson.rows?.some((r) => {
+          if (!r.timestamp || !r.file_hash) return false;
+          if (r.file_hash !== body.file.file_hash) return false;
+          const rowDate = new Date(r.timestamp);
+          const daysDiff = daysBetween(rowDate.toISOString(), now.toISOString());
+          console.log('[Duplicate check]', { hash: r.file_hash, timestamp: r.timestamp, daysDiff });
+          return daysDiff <= 7;
+        }) || false;
+        
+        console.log('[Duplicate check result]', { isDupWithin7Days, matchCount: hashJson.rows?.length || 0 });
+      } catch (dupErr: any) {
+        console.warn('[Duplicate check failed]', dupErr.message);
       }
-      const hashJson = JSON.parse(hashText) as { rows: { timestamp: string; file_hash: string }[] };
-      
-      const now = new Date();
-      isDupWithin7Days = hashJson.rows?.some((r) => {
-        if (!r.timestamp || !r.file_hash) return false;
-        if (r.file_hash !== body.file.file_hash) return false;
-        const rowDate = new Date(r.timestamp);
-        const daysDiff = daysBetween(rowDate.toISOString(), now.toISOString());
-        console.log('[Duplicate check]', { hash: r.file_hash, timestamp: r.timestamp, daysDiff });
-        return daysDiff <= 7;
-      }) || false;
-      
-      console.log('[Duplicate check result]', { isDupWithin7Days, matchCount: hashJson.rows?.length || 0 });
-    } catch (dupErr: any) {
-      console.warn('[Duplicate check failed]', dupErr.message);
     }
 
     // OpenAI Vision call
@@ -281,49 +283,61 @@ export const handler: Handler = async (event) => {
       prompt_version: "v0.4",
       duplicate_within_days: isDupWithin7Days ? 7 : 0,
       request_id: reqId,
+      google_sheets_synced: !body.skipGoogleSheets
     };
 
-    // Append to Google Sheet
-    const sheetStart = Date.now();
-    const postRes = await fetch(APPS_SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(parsed),
-    });
+    // Only append to Google Sheet if not skipped (admin mode enabled)
+    if (!body.skipGoogleSheets) {
+      const sheetStart = Date.now();
+      const postRes = await fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed),
+      });
 
-    console.log('[Apps Script] Completed', { 
-      duration: Date.now() - sheetStart,
-      status: postRes.status
-    });
+      console.log('[Apps Script] Completed', { 
+        duration: Date.now() - sheetStart,
+        status: postRes.status
+      });
 
-    const postText = await postRes.text();
-    if (isLikelyHtml(postRes.headers.get("content-type"), postText)) {
-      return withCors(502, {
-        error: "Apps Script returned HTML instead of JSON.",
-        hint:
-          "Check that APPS_SCRIPT_URL ends with /exec and that your deployment access is set to 'Anyone'. Try re-deploying the Web app.",
-        sample: postText.slice(0, 200),
+      const postText = await postRes.text();
+      if (isLikelyHtml(postRes.headers.get("content-type"), postText)) {
+        return withCors(502, {
+          error: "Apps Script returned HTML instead of JSON.",
+          hint: "Check that APPS_SCRIPT_URL ends with /exec and that your deployment access is set to 'Anyone'. Try re-deploying the Web app.",
+          sample: postText.slice(0, 200),
+        }, reqId);
+      }
+
+      let postJson: any = {};
+      try {
+        postJson = JSON.parse(postText);
+      } catch {
+        return withCors(502, {
+          error: "Apps Script returned non-JSON.",
+          body: postText.slice(0, 200),
+        }, reqId);
+      }
+
+      console.log('[Extract] Total duration', Date.now() - startTime, 'ms');
+
+      return withCors(200, { 
+        ok: true, 
+        duplicate: isDupWithin7Days, 
+        sheet: postJson, 
+        result: parsed 
+      }, reqId);
+    } else {
+      // Skipped Google Sheets - return just the parsed result
+      console.log('[Extract] Skipped Google Sheets (admin mode off). Total duration', Date.now() - startTime, 'ms');
+      
+      return withCors(200, { 
+        ok: true, 
+        duplicate: false,
+        sheet: { skipped: true }, 
+        result: parsed 
       }, reqId);
     }
-
-    let postJson: any = {};
-    try {
-      postJson = JSON.parse(postText);
-    } catch {
-      return withCors(502, {
-        error: "Apps Script returned non-JSON.",
-        body: postText.slice(0, 200),
-      }, reqId);
-    }
-
-    console.log('[Extract] Total duration', Date.now() - startTime, 'ms');
-
-    return withCors(200, { 
-      ok: true, 
-      duplicate: isDupWithin7Days, 
-      sheet: postJson, 
-      result: parsed 
-    }, reqId);
     
   } catch (err: any) {
     console.error('[Extract] Error', err);

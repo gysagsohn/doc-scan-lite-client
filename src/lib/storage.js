@@ -45,17 +45,21 @@ export function saveDocument(document) {
       document.timestamp = new Date().toISOString();
     }
     
-    // Check if document already exists (by hash)
-    const existingIndex = docs.findIndex(d => d.file_hash === document.file_hash);
+    // Check if document already exists (by hash in file object)
+    const existingIndex = docs.findIndex(d => {
+      return d.file_hash === document.file_hash || 
+             d.file?.file_hash === document.file_hash ||
+             d.file?.file_hash === document.file?.file_hash;
+    });
     
     if (existingIndex >= 0) {
       // Update existing document
       docs[existingIndex] = document;
-      console.log("[Storage] Updated existing document:", document.file_hash);
+      console.log("[Storage] Updated existing document:", document.file?.file_hash || document.file_hash);
     } else {
       // Add new document
       docs.push(document);
-      console.log("[Storage] Saved new document:", document.file_hash);
+      console.log("[Storage] Saved new document:", document.file?.file_hash || document.file_hash);
     }
     
     const data = {

@@ -1,12 +1,12 @@
 // src/components/DataManager.jsx
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { getAllDocuments, clearAllDocuments, saveDocument, getStorageStats } from "../lib/storage";
 import { documentsToCSV, csvToDocuments, downloadCSV } from "../lib/csv";
 
 export default function DataManager({ onDataChange }) {
   const [stats, setStats] = useState(getStorageStats());
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [importMode, setImportMode] = useState("merge"); // "merge" or "replace"
+  const [importMode, setImportMode] = useState("merge");
   const [importStatus, setImportStatus] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -14,6 +14,11 @@ export default function DataManager({ onDataChange }) {
     setStats(getStorageStats());
     if (onDataChange) onDataChange();
   }, [onDataChange]);
+
+  // Refresh stats when component mounts and when triggered externally
+  useEffect(() => {
+    refreshStats();
+  }, [refreshStats]);
 
   const handleExport = useCallback(() => {
     try {
@@ -48,7 +53,6 @@ export default function DataManager({ onDataChange }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reset file input
     e.target.value = "";
 
     try {
@@ -61,13 +65,11 @@ export default function DataManager({ onDataChange }) {
         throw new Error("No valid documents found in CSV");
       }
 
-      // Handle merge vs replace
       if (importMode === "replace") {
         clearAllDocuments();
         console.log("[Import] Cleared existing data (replace mode)");
       }
 
-      // Save each document
       let savedCount = 0;
       let skippedCount = 0;
       let updatedCount = 0;
@@ -79,7 +81,6 @@ export default function DataManager({ onDataChange }) {
         );
 
         if (importMode === "merge" && existingDoc) {
-          // Skip duplicates in merge mode
           skippedCount++;
           console.log(`[Import] Skipped duplicate:`, doc.file_hash);
         } else {
