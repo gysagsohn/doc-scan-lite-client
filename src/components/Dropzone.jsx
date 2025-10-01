@@ -14,6 +14,8 @@ const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/jpg
 const RATE_LIMIT_MS = 5000;
 
 export default function Dropzone({ adminMode = false }) {
+  console.log('[Dropzone] Render - adminMode:', adminMode);
+  
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [result, setResult] = useState(null);
@@ -29,6 +31,7 @@ export default function Dropzone({ adminMode = false }) {
   adminModeRef.current = adminMode;
 
   const reset = useCallback(() => {
+    console.log('[Dropzone] Reset called');
     setError("");
     setResult(null);
     setProgress("");
@@ -38,6 +41,14 @@ export default function Dropzone({ adminMode = false }) {
   }, []);
 
   const processFile = useCallback(async (file, forceReprocess = false) => {
+    console.log('[processFile] Started', {
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+      forceReprocess,
+      adminMode: adminModeRef.current
+    });
+
     try {
       setBusy(true);
       setProgress("Reading file...");
@@ -45,11 +56,15 @@ export default function Dropzone({ adminMode = false }) {
       // Convert to image data URLs
       let images = [];
       if (file.type === "application/pdf") {
+        console.log('[processFile] Processing PDF');
         setProgress("Converting PDF pages to images...");
         images = await pdfToPageDataURLs(file, 2);
+        console.log('[processFile] PDF converted to', images.length, 'images');
       } else if (file.type.startsWith("image/")) {
+        console.log('[processFile] Processing image');
         setProgress("Processing image...");
         const dataUrl = await fileToDataURL(file);
+        console.log('[processFile] Image loaded, size:', dataUrl.length);
         setProgress("Optimizing image for AI processing...");
         const resized = await resizeImage(dataUrl, 800);
         images = [resized];
@@ -59,6 +74,7 @@ export default function Dropzone({ adminMode = false }) {
           reduction: `${((1 - resized.length / dataUrl.length) * 100).toFixed(1)}%`
         });
       } else {
+        console.error('[processFile] Unsupported file type:', file.type);
         setError("Unsupported file type");
         setBusy(false);
         return;
@@ -66,28 +82,42 @@ export default function Dropzone({ adminMode = false }) {
 
       setProgress("Computing file hash...");
       const file_hash = await sha256File(file);
+      console.log('[processFile] File hash computed:', file_hash);
       
       // Check for duplicate BEFORE calling OpenAI
       if (!forceReprocess) {
+        console.log('[processFile] Checking for duplicates...');
         const existingDoc = findDocumentByHash(file_hash);
         if (existingDoc) {
-          console.log('[Duplicate detected]', file_hash);
+          console.log('[processFile] Duplicate detected!', file_hash);
           setDuplicateModal(existingDoc);
           pendingFileRef.current = { file, images, file_hash };
           setBusy(false);
           setProgress("");
           return;
         }
+        console.log('[processFile] No duplicate found, proceeding...');
+      } else {
+        console.log('[processFile] Skipping duplicate check (forceReprocess=true)');
       }
       
       const totalPayloadSize = images.reduce((sum, img) => sum + img.length, 0);
       console.log('[Payload] Total size:', (totalPayloadSize / 1024 / 1024).toFixed(2), 'MB');
       
       if (totalPayloadSize > 10 * 1024 * 1024) {
-        throw new Error(`Images still too large after processing: ${(totalPayloadSize / 1024 / 1024).toFixed(2)}MB. Please use a smaller file.`);
+        const errorMsg = `Images still too large after processing: ${(totalPayloadSize / 1024 / 1024).toFixed(2)}MB. Please use a smaller file.`;
+        console.error('[processFile]', errorMsg);
+        throw new Error(errorMsg);
       }
       
       // Use ref to get current adminMode value
+      const skipGoogleSheets = !adminModeRef.current;
+      console.log('[processFile] Building payload', {
+        skipGoogleSheets,
+        adminMode: adminModeRef.current,
+        imageCount: images.length
+      });
+      
       const payload = {
         images,
         file: {
@@ -96,73 +126,130 @@ export default function Dropzone({ adminMode = false }) {
           file_size: file.size,
           file_hash,
         },
-        skipGoogleSheets: !adminModeRef.current
+        skipGoogleSheets
       };
 
       const fnUrl = "/.netlify/functions/extract";
+      console.log('[processFile] Calling API:', fnUrl);
 
       setProgress("Sending to AI for analysis... (this may take 10-30 seconds)");
+      const fetchStart = Date.now();
       const res = await fetch(fnUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      
+      console.log('[processFile] API response received', {
+        status: res.status,
+        statusText: res.statusText,
+        duration: Date.now() - fetchStart + 'ms'
+      });
 
       const json = await res.json();
+      console.log('[processFile] Response JSON:', json);
       
       if (!res.ok) {
         const errorMsg = json.error || "Server error";
         const hint = json.hint ? `\n\n💡 ${json.hint}` : "";
+        console.error('[processFile] API error:', errorMsg, hint);
         throw new Error(`${errorMsg}${hint}`);
       }
 
       // Save to localStorage
+      console.log('[processFile] Saving to localStorage...');
       const docToSave = {
         ...json.result,
         timestamp: new Date().toISOString(),
       };
-      saveDocument(docToSave);
-      console.log('[Storage] Saved document to localStorage:', file_hash);
+      const saved = saveDocument(docToSave);
+      console.log('[Storage] Save result:', saved ? 'success' : 'failed', file_hash);
 
       setResult(json);
       setProgress("");
       setDuplicateModal(null);
       pendingFileRef.current = null;
+      console.log('[processFile] Completed successfully');
     } catch (e) {
+      console.error('[processFile] Error caught:', e);
+      console.error('[processFile] Error stack:', e.stack);
       const errorMsg = String(e.message || e);
       setError(errorMsg.length > 300 ? errorMsg.slice(0, 300) + "..." : errorMsg);
       setProgress("");
     } finally {
       setBusy(false);
+      console.log('[processFile] Finally block - busy set to false');
     }
   }, []); // No dependencies - uses refs instead
 
   const onSelect = useCallback(async (file) => {
+    console.log('[onSelect] Called', {
+      hasFile: !!file,
+      fileName: file?.name,
+      fileType: file?.type,
+      fileSize: file?.size
+    });
+
     reset();
-    if (!file) return;
+    if (!file) {
+      console.log('[onSelect] No file provided, exiting');
+      return;
+    }
 
     const now = Date.now();
-    if (now - lastUploadRef.current < RATE_LIMIT_MS) {
-      const waitSeconds = Math.ceil((RATE_LIMIT_MS - (now - lastUploadRef.current)) / 1000);
-      setError(`Please wait ${waitSeconds} seconds between uploads. This is a personal project with API costs - rate limiting helps protect against abuse and keeps costs manageable. Thank you for your patience!`);
+    const timeSinceLastUpload = now - lastUploadRef.current;
+    console.log('[onSelect] Rate limit check:', {
+      timeSinceLastUpload,
+      rateLimitMs: RATE_LIMIT_MS,
+      blocked: timeSinceLastUpload < RATE_LIMIT_MS
+    });
+
+    if (timeSinceLastUpload < RATE_LIMIT_MS) {
+      const waitSeconds = Math.ceil((RATE_LIMIT_MS - timeSinceLastUpload) / 1000);
+      const errorMsg = `Please wait ${waitSeconds} seconds between uploads. This is a personal project with API costs - rate limiting helps protect against abuse and keeps costs manageable. Thank you for your patience!`;
+      console.warn('[onSelect] Rate limited:', errorMsg);
+      setError(errorMsg);
       return;
     }
+
+    console.log('[onSelect] Validating file size...', {
+      fileSize: file.size,
+      maxSize: MAX_MB * 1024 * 1024,
+      valid: file.size <= MAX_MB * 1024 * 1024
+    });
 
     if (file.size > MAX_MB * 1024 * 1024) {
-      setError(`File exceeds ${MAX_MB} MB limit`);
+      const errorMsg = `File exceeds ${MAX_MB} MB limit`;
+      console.error('[onSelect]', errorMsg);
+      setError(errorMsg);
       return;
     }
 
+    console.log('[onSelect] Validating file type...', {
+      fileType: file.type,
+      acceptedTypes: ACCEPTED_TYPES,
+      valid: ACCEPTED_TYPES.includes(file.type)
+    });
+
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      setError(`Unsupported file type: ${file.type}. Please upload PDF, PNG, JPG, or WEBP.`);
+      const errorMsg = `Unsupported file type: ${file.type}. Please upload PDF, PNG, JPG, or WEBP.`;
+      console.error('[onSelect]', errorMsg);
+      setError(errorMsg);
       return;
     }
 
     lastUploadRef.current = now;
+    console.log('[onSelect] Validation passed, calling processFile...');
     await processFile(file, false);
+    console.log('[onSelect] processFile completed');
   }, [reset, processFile]);
 
   const handleUseCached = useCallback(() => {
+    console.log('[handleUseCached] Called', {
+      hasDuplicateModal: !!duplicateModal,
+      hash: duplicateModal?.file_hash || duplicateModal?.file?.file_hash
+    });
+    
     if (duplicateModal) {
       console.log('[Using cached data]', duplicateModal.file_hash || duplicateModal.file?.file_hash);
       setResult({ ok: true, result: duplicateModal, fromCache: true });
@@ -172,6 +259,11 @@ export default function Dropzone({ adminMode = false }) {
   }, [duplicateModal]);
 
   const handleReprocess = useCallback(async () => {
+    console.log('[handleReprocess] Called', {
+      hasPendingFile: !!pendingFileRef.current,
+      hash: pendingFileRef.current?.file_hash
+    });
+    
     if (pendingFileRef.current) {
       console.log('[Reprocessing file]', pendingFileRef.current.file_hash);
       setDuplicateModal(null);
@@ -180,6 +272,7 @@ export default function Dropzone({ adminMode = false }) {
   }, [processFile]);
 
   const handleCancelDuplicate = useCallback(() => {
+    console.log('[handleCancelDuplicate] Called');
     setDuplicateModal(null);
     pendingFileRef.current = null;
     reset();
@@ -188,27 +281,60 @@ export default function Dropzone({ adminMode = false }) {
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!busy) setIsDragging(true);
+    if (!busy) {
+      console.log('[handleDragOver] Setting isDragging=true');
+      setIsDragging(true);
+    }
   }, [busy]);
 
   const handleDragLeave = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('[handleDragLeave] Setting isDragging=false');
     setIsDragging(false);
   }, []);
 
   const handleDrop = useCallback((e) => {
+    console.log('[handleDrop] Called', {
+      busy,
+      filesCount: e.dataTransfer?.files?.length
+    });
+    
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
     
-    if (busy) return;
+    if (busy) {
+      console.log('[handleDrop] Busy, ignoring drop');
+      return;
+    }
     
     const files = e.dataTransfer?.files;
     if (files && files.length > 0) {
+      console.log('[handleDrop] Calling onSelect with file:', files[0].name);
       onSelect(files[0]);
+    } else {
+      console.warn('[handleDrop] No files in drop event');
     }
   }, [busy, onSelect]);
+
+  const handleFileInputChange = useCallback((e) => {
+    console.log('[handleFileInputChange] Called', {
+      filesCount: e.target.files?.length,
+      firstFile: e.target.files?.[0]?.name
+    });
+    onSelect(e.target.files?.[0] || null);
+  }, [onSelect]);
+
+  console.log('[Dropzone] Render state:', {
+    busy,
+    hasError: !!error,
+    hasResult: !!result,
+    hasDuplicateModal: !!duplicateModal,
+    isDragging,
+    progress,
+    fileInputKey
+  });
 
   return (
     <>
@@ -253,7 +379,7 @@ export default function Dropzone({ adminMode = false }) {
               key={fileInputKey}
               type="file"
               accept={Object.keys(ACCEPT).join(",")}
-              onChange={(e) => onSelect(e.target.files?.[0] || null)}
+              onChange={handleFileInputChange}
               disabled={busy}
               aria-describedby="file-instructions"
               style={{ display: "block", margin: "0 auto 0.75rem" }}

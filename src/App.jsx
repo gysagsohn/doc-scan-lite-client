@@ -9,11 +9,9 @@ import "./styles/theme.css";
 
 export default function App() {
   const [adminMode, setAdminMode] = useState(() => {
-    // Persist admin mode state in localStorage
     const saved = localStorage.getItem('admin-mode-enabled');
     return saved === 'true';
   });
-  const [dataVersion, setDataVersion] = useState(0);
 
   const handleAdminToggle = (enabled) => {
     setAdminMode(enabled);
@@ -22,8 +20,7 @@ export default function App() {
   };
 
   const handleDataChange = () => {
-    // Trigger re-render when data changes
-    setDataVersion(prev => prev + 1);
+    console.log('[App] Data changed - DataManager updated storage');
   };
 
   return (
@@ -81,7 +78,7 @@ export default function App() {
 
         <WarningBanner />
         
-        <Dropzone key={dataVersion} adminMode={adminMode} />
+        <Dropzone adminMode={adminMode} />
         
         <DataManager onDataChange={handleDataChange} />
 
