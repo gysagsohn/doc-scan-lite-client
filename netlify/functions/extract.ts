@@ -149,7 +149,7 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    const body = JSON.parse(event.body || "{}") as ExtractReq;
+    const body = JSON.parse(event.body || "{}") as ExtractReq & { skipGoogleSheets?: boolean };
     
     if (!body.images?.length || !body.file?.file_hash) {
       return withCors(400, { error: "images[] and file.file_hash required" }, reqId);

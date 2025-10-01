@@ -82,74 +82,44 @@ export default function Dropzone({ adminMode = false }) {
         throw new Error(`Images still too large after processing: ${(totalPayloadSize / 1024 / 1024).toFixed(2)}MB. Please use a smaller file.`);
       }
       
-      let parsedResult;
+      // Always call backend for AI extraction
+      const payload = {
+        images,
+        file: {
+          file_name: file.name,
+          mime_type: file.type,
+          file_size: file.size,
+          file_hash,
+        },
+        skipGoogleSheets: !adminMode // Skip Google Sheets unless admin mode is on
+      };
 
-      // Only call backend (OpenAI + Google Sheets) if admin mode is enabled
-      if (adminMode) {
-        const payload = {
-          images,
-          file: {
-            file_name: file.name,
-            mime_type: file.type,
-            file_size: file.size,
-            file_hash,
-          },
-        };
+      const fnUrl = "/.netlify/functions/extract";
 
-        const fnUrl = "/.netlify/functions/extract";
+      setProgress("Sending to AI for analysis... (this may take 10-30 seconds)");
+      const res = await fetch(fnUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-        setProgress("Sending to AI for analysis... (this may take 10-30 seconds)");
-        const res = await fetch(fnUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        const json = await res.json();
-        
-        if (!res.ok) {
-          const errorMsg = json.error || "Server error";
-          const hint = json.hint ? `\n\n💡 ${json.hint}` : "";
-          throw new Error(`${errorMsg}${hint}`);
-        }
-
-        parsedResult = json.result;
-      } else {
-        // Admin mode disabled: Show message that AI extraction is disabled
-        parsedResult = {
-          document_type: "AI Extraction Disabled",
-          name_full: null,
-          date_issued: null,
-          date_expiry: null,
-          document_number: null,
-          document_number_type: null,
-          issuer: null,
-          confidence: {},
-          extras: {},
-          file: {
-            file_name: file.name,
-            mime_type: file.type,
-            file_size: file.size,
-            file_hash,
-          },
-          audit: {
-            model: "none",
-            prompt_version: "disabled",
-            admin_mode: false,
-            note: "Enable admin mode to use AI extraction and Google Sheets sync"
-          }
-        };
+      const json = await res.json();
+      
+      if (!res.ok) {
+        const errorMsg = json.error || "Server error";
+        const hint = json.hint ? `\n\n💡 ${json.hint}` : "";
+        throw new Error(`${errorMsg}${hint}`);
       }
 
       // Save to localStorage
       const docToSave = {
-        ...parsedResult,
+        ...json.result,
         timestamp: new Date().toISOString(),
       };
       saveDocument(docToSave);
       console.log('[Storage] Saved document to localStorage:', file_hash);
 
-      setResult({ ok: true, result: parsedResult });
+      setResult(json);
       setProgress("");
       setDuplicateModal(null);
       pendingFileRef.current = null;

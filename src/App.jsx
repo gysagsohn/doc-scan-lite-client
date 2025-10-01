@@ -33,7 +33,7 @@ export default function App() {
           textAlign: "center",
           opacity: 0.9
         }}>
-          Upload a PDF or image. {adminMode ? "AI will parse key fields and sync to Google Sheets." : "Files are saved locally for duplicate detection."}
+          Upload a PDF or image. AI will parse key fields and save locally. {adminMode && "Google Sheets sync enabled."}
         </p>
 
         {adminMode && (
