@@ -15,9 +15,22 @@ export default function DataManager({ onDataChange }) {
     if (onDataChange) onDataChange();
   }, [onDataChange]);
 
-  // Refresh stats when component mounts and when triggered externally
+  // Listen for storage changes from other components
   useEffect(() => {
+    const handleStorageUpdate = () => {
+      console.log('[DataManager] Storage updated, refreshing stats');
+      refreshStats();
+    };
+
+    // Initial refresh
     refreshStats();
+
+    // Listen for custom storage update events
+    window.addEventListener('doc-scan-storage-updated', handleStorageUpdate);
+
+    return () => {
+      window.removeEventListener('doc-scan-storage-updated', handleStorageUpdate);
+    };
   }, [refreshStats]);
 
   const handleExport = useCallback(() => {

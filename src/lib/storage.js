@@ -27,8 +27,8 @@ export function getAllDocuments() {
 export function findDocumentByHash(hash) {
   const docs = getAllDocuments();
   return docs.find(doc => {
-    // Check both root level and nested in file object
-    return doc.file_hash === hash || doc.file?.file_hash === hash;
+    const docHash = doc.file?.file_hash || doc.file_hash;
+    return docHash === hash;
   }) || null;
 }
 
@@ -45,21 +45,28 @@ export function saveDocument(document) {
       document.timestamp = new Date().toISOString();
     }
     
-    // Check if document already exists (by hash in file object)
+    // Get the hash from the document (either in file object or root level)
+    const newDocHash = document.file?.file_hash || document.file_hash;
+    
+    if (!newDocHash) {
+      console.error("[Storage] Cannot save document without file_hash");
+      return false;
+    }
+    
+    // Check if document already exists by comparing hashes
     const existingIndex = docs.findIndex(d => {
-      return d.file_hash === document.file_hash || 
-             d.file?.file_hash === document.file_hash ||
-             d.file?.file_hash === document.file?.file_hash;
+      const existingHash = d.file?.file_hash || d.file_hash;
+      return existingHash === newDocHash;
     });
     
     if (existingIndex >= 0) {
-      // Update existing document
+      // Update existing document (reprocessed duplicate)
       docs[existingIndex] = document;
-      console.log("[Storage] Updated existing document:", document.file?.file_hash || document.file_hash);
+      console.log("[Storage] Updated existing document:", newDocHash);
     } else {
       // Add new document
       docs.push(document);
-      console.log("[Storage] Saved new document:", document.file?.file_hash || document.file_hash);
+      console.log("[Storage] Saved new document:", newDocHash);
     }
     
     const data = {
@@ -72,6 +79,10 @@ export function saveDocument(document) {
     };
     
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    
+    // Trigger storage event for other components to listen to
+    window.dispatchEvent(new Event('doc-scan-storage-updated'));
+    
     return true;
   } catch (err) {
     console.error("[Storage] Failed to save document:", err);
@@ -92,6 +103,10 @@ export function clearAllDocuments() {
   try {
     localStorage.removeItem(STORAGE_KEY);
     console.log("[Storage] Cleared all documents");
+    
+    // Trigger storage event
+    window.dispatchEvent(new Event('doc-scan-storage-updated'));
+    
     return true;
   } catch (err) {
     console.error("[Storage] Failed to clear documents:", err);
