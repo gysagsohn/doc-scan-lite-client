@@ -130,7 +130,7 @@ export default function Dropzone({ adminMode = false }) {
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [adminMode]);
 
   const onSelect = useCallback(async (file) => {
     reset();
