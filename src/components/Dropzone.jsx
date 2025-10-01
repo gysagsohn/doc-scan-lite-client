@@ -13,7 +13,7 @@ const MAX_MB = 10;
 const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/jpg", "image/webp"];
 const RATE_LIMIT_MS = 5000;
 
-export default function Dropzone() {
+export default function Dropzone({ adminMode = false }) {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [result, setResult] = useState(null);
@@ -82,42 +82,74 @@ export default function Dropzone() {
         throw new Error(`Images still too large after processing: ${(totalPayloadSize / 1024 / 1024).toFixed(2)}MB. Please use a smaller file.`);
       }
       
-      const payload = {
-        images,
-        file: {
-          file_name: file.name,
-          mime_type: file.type,
-          file_size: file.size,
-          file_hash,
-        },
-      };
+      let parsedResult;
 
-      const fnUrl = "/.netlify/functions/extract";
+      // Only call backend (OpenAI + Google Sheets) if admin mode is enabled
+      if (adminMode) {
+        const payload = {
+          images,
+          file: {
+            file_name: file.name,
+            mime_type: file.type,
+            file_size: file.size,
+            file_hash,
+          },
+        };
 
-      setProgress("Sending to AI for analysis... (this may take 10-30 seconds)");
-      const res = await fetch(fnUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+        const fnUrl = "/.netlify/functions/extract";
 
-      const json = await res.json();
-      
-      if (!res.ok) {
-        const errorMsg = json.error || "Server error";
-        const hint = json.hint ? `\n\n💡 ${json.hint}` : "";
-        throw new Error(`${errorMsg}${hint}`);
+        setProgress("Sending to AI for analysis... (this may take 10-30 seconds)");
+        const res = await fetch(fnUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const json = await res.json();
+        
+        if (!res.ok) {
+          const errorMsg = json.error || "Server error";
+          const hint = json.hint ? `\n\n💡 ${json.hint}` : "";
+          throw new Error(`${errorMsg}${hint}`);
+        }
+
+        parsedResult = json.result;
+      } else {
+        // Admin mode disabled: Show message that AI extraction is disabled
+        parsedResult = {
+          document_type: "AI Extraction Disabled",
+          name_full: null,
+          date_issued: null,
+          date_expiry: null,
+          document_number: null,
+          document_number_type: null,
+          issuer: null,
+          confidence: {},
+          extras: {},
+          file: {
+            file_name: file.name,
+            mime_type: file.type,
+            file_size: file.size,
+            file_hash,
+          },
+          audit: {
+            model: "none",
+            prompt_version: "disabled",
+            admin_mode: false,
+            note: "Enable admin mode to use AI extraction and Google Sheets sync"
+          }
+        };
       }
 
-      // Save to localStorage immediately (even if backend times out later)
+      // Save to localStorage
       const docToSave = {
-        ...json.result,
+        ...parsedResult,
         timestamp: new Date().toISOString(),
       };
       saveDocument(docToSave);
       console.log('[Storage] Saved document to localStorage:', file_hash);
 
-      setResult(json);
+      setResult({ ok: true, result: parsedResult });
       setProgress("");
       setDuplicateModal(null);
       pendingFileRef.current = null;
@@ -137,7 +169,7 @@ export default function Dropzone() {
     const now = Date.now();
     if (now - lastUploadRef.current < RATE_LIMIT_MS) {
       const waitSeconds = Math.ceil((RATE_LIMIT_MS - (now - lastUploadRef.current)) / 1000);
-      setError(`Please wait ${waitSeconds} seconds between uploads`);
+      setError(`Please wait ${waitSeconds} seconds between uploads. This is a personal project with API costs - rate limiting helps protect against abuse and keeps costs manageable. Thank you for your patience!`);
       return;
     }
 
@@ -358,7 +390,7 @@ export default function Dropzone() {
               </div>
             )}
             
-            {!result.fromCache && (
+            {adminMode && !result.fromCache && (
               <a 
                 href="https://docs.google.com/spreadsheets/d/1BRCQE9HO3N4kUZT-3OLAUddcSqCDpFfEHBxdhferuig/edit?gid=1127136393#gid=1127136393"
                 target="_blank"

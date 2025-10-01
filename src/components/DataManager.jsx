@@ -64,26 +64,46 @@ export default function DataManager({ onDataChange }) {
       // Save each document
       let savedCount = 0;
       let skippedCount = 0;
+      let updatedCount = 0;
 
       importedDocs.forEach(doc => {
-        const success = saveDocument(doc);
-        if (success) {
-          savedCount++;
-        } else {
+        const existingDocs = getAllDocuments();
+        const existingDoc = existingDocs.find(d => 
+          d.file?.file_hash === doc.file_hash || d.file_hash === doc.file_hash
+        );
+
+        if (importMode === "merge" && existingDoc) {
+          // Skip duplicates in merge mode
           skippedCount++;
+          console.log(`[Import] Skipped duplicate:`, doc.file_hash);
+        } else {
+          const success = saveDocument(doc);
+          if (success) {
+            if (existingDoc) {
+              updatedCount++;
+            } else {
+              savedCount++;
+            }
+          } else {
+            skippedCount++;
+          }
         }
       });
 
       refreshStats();
       
+      const message = importMode === "merge"
+        ? `Imported ${savedCount} new documents. ${updatedCount > 0 ? `Updated ${updatedCount}.` : ''} ${skippedCount > 0 ? `Skipped ${skippedCount} duplicates.` : ""}`
+        : `Replaced all data with ${savedCount} documents.`;
+      
       setImportStatus({
         type: "success",
-        message: `Imported ${savedCount} documents. ${skippedCount > 0 ? `Skipped ${skippedCount}.` : ""}`
+        message
       });
 
       setTimeout(() => setImportStatus(null), 5000);
       
-      console.log(`[Import] Mode: ${importMode}, Saved: ${savedCount}, Skipped: ${skippedCount}`);
+      console.log(`[Import] Mode: ${importMode}, New: ${savedCount}, Updated: ${updatedCount}, Skipped: ${skippedCount}`);
     } catch (err) {
       console.error("[Import] Error:", err);
       setImportStatus({

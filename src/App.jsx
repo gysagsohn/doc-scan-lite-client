@@ -33,7 +33,7 @@ export default function App() {
           textAlign: "center",
           opacity: 0.9
         }}>
-          Upload a PDF or image. We'll parse key fields with AI {adminMode && "and sync to Google Sheets"}.
+          Upload a PDF or image. {adminMode ? "AI will parse key fields and sync to Google Sheets." : "Files are saved locally for duplicate detection."}
         </p>
 
         {adminMode && (
@@ -52,7 +52,7 @@ export default function App() {
 
         <WarningBanner />
         
-        <Dropzone key={dataVersion} />
+        <Dropzone key={dataVersion} adminMode={adminMode} />
         
         <DataManager onDataChange={handleDataChange} />
 
