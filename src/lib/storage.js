@@ -26,7 +26,10 @@ export function getAllDocuments() {
  */
 export function findDocumentByHash(hash) {
   const docs = getAllDocuments();
-  return docs.find(doc => doc.file_hash === hash) || null;
+  return docs.find(doc => {
+    // Check both root level and nested in file object
+    return doc.file_hash === hash || doc.file?.file_hash === hash;
+  }) || null;
 }
 
 /**
