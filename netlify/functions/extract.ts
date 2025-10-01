@@ -7,7 +7,7 @@ const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const RAW_APPS_SCRIPT_URL = (process.env.APPS_SCRIPT_URL || "").trim();
 
 type ExtractReq = {
-  images: string[]; // data URLs (max 2)
+  images: string[];
   file: { file_name: string; mime_type: string; file_size: number; file_hash: string };
 };
 
@@ -63,13 +63,11 @@ function isAppsScriptLibraryUrl(url: string) {
 
 function normalizeAppsScriptUrl(url: string) {
   if (!url) throw new Error("APPS_SCRIPT_URL missing");
-  // Absolute requirement: must be a Web App /exec endpoint
   if (isAppsScriptLibraryUrl(url)) {
     throw new Error(
       "APPS_SCRIPT_URL points to a /library/ URL. Use your Web App deployment URL instead: https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec"
     );
   }
-  // Convert .../dev to .../exec (common copy-paste slip)
   const devMatch = url.match(/^(https:\/\/script\.google\.com\/macros\/s\/[^/]+)\/dev$/i);
   if (devMatch) return `${devMatch[1]}/exec`;
   return url;
@@ -80,22 +78,17 @@ function isLikelyHtml(contentType: string | null | undefined, bodyText: string) 
   return /<!DOCTYPE html>|<html/i.test(bodyText);
 }
 
-// Timezone-safe date normalization
 function normalizeToISODate(s: any): string | null {
   if (!s) return null;
   
-  // Already in ISO format
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
   
-  // Extract date-only pattern to avoid timezone shifts
   const match = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (match) return `${match[1]}-${match[2]}-${match[3]}`;
   
-  // Fallback for formats like "15 Sep 2025"
   try {
     const date = new Date(s);
     if (isNaN(date.getTime())) return null;
-    // Use UTC to prevent timezone shifts
     const year = date.getUTCFullYear();
     const month = String(date.getUTCMonth() + 1).padStart(2, '0');
     const day = String(date.getUTCDate()).padStart(2, '0');
@@ -110,7 +103,7 @@ const withCors = (statusCode: number, body: any, reqId?: string) => ({
   headers: {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "X-Request-ID": reqId || Date.now().toString(36),
   },
@@ -125,12 +118,8 @@ export const handler: Handler = async (event) => {
     return withCors(200, {}, reqId);
   }
 
-  if (event.httpMethod !== "POST") {
-    return withCors(405, { error: "Method Not Allowed" }, reqId);
-  }
-
-  // Diagnostic mode - quick preflight check
-  if (event.queryStringParameters?.diagnostic === 'true') {
+  // Diagnostic mode - accept GET requests
+  if (event.httpMethod === "GET" && event.queryStringParameters?.diagnostic === 'true') {
     return withCors(200, {
       ok: true,
       mode: 'diagnostic',
@@ -142,6 +131,10 @@ export const handler: Handler = async (event) => {
       },
       timestamp: new Date().toISOString()
     }, reqId);
+  }
+
+  if (event.httpMethod !== "POST") {
+    return withCors(405, { error: "Method Not Allowed" }, reqId);
   }
 
   let APPS_SCRIPT_URL: string;
@@ -158,23 +151,20 @@ export const handler: Handler = async (event) => {
   try {
     const body = JSON.parse(event.body || "{}") as ExtractReq;
     
-    // Validate required fields
     if (!body.images?.length || !body.file?.file_hash) {
       return withCors(400, { error: "images[] and file.file_hash required" }, reqId);
     }
 
-    // Validate max image count
     if (body.images.length > 2) {
       return withCors(400, { error: "Maximum 2 images allowed" }, reqId);
     }
 
-    // Validate payload size (prevent huge base64 strings)
     const totalBase64Size = body.images.reduce((sum, dataUrl) => {
       const b64 = dataUrl.split(',')[1] || '';
       return sum + b64.length;
     }, 0);
 
-    const MAX_BASE64_BYTES = 20 * 1024 * 1024; // 20MB
+    const MAX_BASE64_BYTES = 20 * 1024 * 1024;
     if (totalBase64Size > MAX_BASE64_BYTES) {
       return withCors(413, { 
         error: "Images too large after encoding",
@@ -190,7 +180,7 @@ export const handler: Handler = async (event) => {
       base64Size: `${(totalBase64Size / 1024 / 1024).toFixed(2)}MB`
     });
 
-    // Duplicate check via Apps Script GET ?hash=
+    // Duplicate check via Apps Script GET
     let isDupWithin7Days = false;
     try {
       const hashURL = `${APPS_SCRIPT_URL}?hash=${encodeURIComponent(body.file.file_hash)}`;
@@ -201,7 +191,6 @@ export const handler: Handler = async (event) => {
       }
       const hashJson = JSON.parse(hashText) as { rows: { timestamp: string; file_hash: string }[] };
       
-      // Check if any matching rows exist within 7 days
       const now = new Date();
       isDupWithin7Days = hashJson.rows?.some((r) => {
         if (!r.timestamp || !r.file_hash) return false;
@@ -215,17 +204,16 @@ export const handler: Handler = async (event) => {
       console.log('[Duplicate check result]', { isDupWithin7Days, matchCount: hashJson.rows?.length || 0 });
     } catch (dupErr: any) {
       console.warn('[Duplicate check failed]', dupErr.message);
-      // Non-fatal; continue without duplicate knowledge
     }
 
-    // OpenAI Vision call (JSON mode)
+    // OpenAI Vision call
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     
     const inputImgs = body.images.slice(0, 2).map((dataUrl) => ({
       type: "image_url" as const,
       image_url: { 
         url: dataUrl,
-        detail: "low" as const // OpenAI will auto-scale based on complexity
+        detail: "low" as const
       },
     }));
 
@@ -263,7 +251,6 @@ export const handler: Handler = async (event) => {
     try {
       parsed = JSON.parse(raw);
     } catch {
-      // One repair retry (still JSON-only)
       console.warn('[OpenAI] Initial parse failed, retrying with temp 0.0');
       const completion2 = await openai.chat.completions.create({
         model: MODEL,
@@ -284,7 +271,6 @@ export const handler: Handler = async (event) => {
       parsed = JSON.parse(raw);
     }
 
-    // Normalize dates (timezone-safe)
     parsed.date_issued = normalizeToISODate(parsed.date_issued);
     parsed.date_expiry = normalizeToISODate(parsed.date_expiry);
 
@@ -342,7 +328,6 @@ export const handler: Handler = async (event) => {
   } catch (err: any) {
     console.error('[Extract] Error', err);
     
-    // Check if it's a timeout error
     const isTimeout = err?.message?.includes('timeout') || err?.code === 'ETIMEDOUT';
     
     return withCors(isTimeout ? 504 : 500, { 
