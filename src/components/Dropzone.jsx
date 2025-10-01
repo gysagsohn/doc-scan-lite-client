@@ -109,12 +109,13 @@ export default function Dropzone() {
         throw new Error(`${errorMsg}${hint}`);
       }
 
-      // Save to localStorage
+      // Save to localStorage immediately (even if backend times out later)
       const docToSave = {
         ...json.result,
         timestamp: new Date().toISOString(),
       };
       saveDocument(docToSave);
+      console.log('[Storage] Saved document to localStorage:', file_hash);
 
       setResult(json);
       setProgress("");

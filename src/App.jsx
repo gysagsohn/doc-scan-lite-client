@@ -1,9 +1,21 @@
-// src/App.jsx - Updated with ErrorBoundary
+// src/App.jsx
+import { useState } from "react";
 import Dropzone from "./components/Dropzone";
+import DataManager from "./components/DataManager";
+import WarningBanner from "./components/WarningBanner";
+import AdminMode from "./components/AdminMode";
 import ErrorBoundary from "./components/ErrorBoundary";
 import "./styles/theme.css";
 
 export default function App() {
+  const [adminMode, setAdminMode] = useState(false);
+  const [dataVersion, setDataVersion] = useState(0);
+
+  const handleDataChange = () => {
+    // Trigger re-render when data changes
+    setDataVersion(prev => prev + 1);
+  };
+
   return (
     <ErrorBoundary>
       <main style={{ maxWidth: 720, margin: "0 auto", padding: "2rem" }}>
@@ -21,17 +33,30 @@ export default function App() {
           textAlign: "center",
           opacity: 0.9
         }}>
-          Upload a PDF or image. We'll parse key fields with AI and append to a Google Sheet.
+          Upload a PDF or image. We'll parse key fields with AI {adminMode && "and sync to Google Sheets"}.
         </p>
-        <Dropzone />
-        <footer style={{ 
-          marginTop: "2rem", 
-          textAlign: "center", 
-          fontSize: "0.85rem", 
-          opacity: 0.7 
-        }}>
-          Uses OpenAI Vision (gpt-4o-mini) • Max 10MB • Optimized to 800px JPEG
-        </footer>
+
+        {adminMode && (
+          <div style={{
+            background: "rgba(59, 130, 246, 0.1)",
+            border: "1px solid rgba(59, 130, 246, 0.3)",
+            borderRadius: "8px",
+            padding: "0.75rem 1rem",
+            marginBottom: "1rem",
+            fontSize: "0.9rem",
+            textAlign: "center"
+          }}>
+            <strong>Admin Mode Active:</strong> Documents will also sync to your private Google Sheet
+          </div>
+        )}
+
+        <WarningBanner />
+        
+        <Dropzone key={dataVersion} />
+        
+        <DataManager onDataChange={handleDataChange} />
+
+        <AdminMode enabled={adminMode} onToggle={setAdminMode} />
       </main>
     </ErrorBoundary>
   );
