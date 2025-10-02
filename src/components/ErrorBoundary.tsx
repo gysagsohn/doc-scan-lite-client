@@ -1,4 +1,5 @@
 import { Component, ReactNode, ErrorInfo } from "react";
+import styles from "../styles/ErrorBoundary.module.css";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -28,55 +29,26 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   render() {
     if (this.state.hasError) {
       return (
-        <div
-          style={{
-            maxWidth: "720px",
-            margin: "2rem auto",
-            padding: "2rem",
-            background: "rgba(220, 38, 38, 0.1)",
-            border: "1px solid rgba(220, 38, 38, 0.3)",
-            borderRadius: "12px",
-            textAlign: "center",
-          }}
-        >
-          <h2 style={{ color: "#991b1b", marginTop: 0 }}>
-            Something went wrong
-          </h2>
-          <p style={{ marginBottom: "1.5rem" }}>
+        <div className={styles.container}>
+          <h2 className={styles.title}>Something went wrong</h2>
+          
+          <p className={styles.message}>
             The app encountered an unexpected error. Try refreshing the page.
           </p>
+          
           <button
             onClick={() => window.location.reload()}
-            className="btn"
-            style={{
-              background: "#991b1b",
-              padding: "0.75rem 1.5rem",
-            }}
+            className={`btn ${styles.refreshButton}`}
           >
             Refresh Page
           </button>
+          
           {this.state.error && (
-            <details style={{ marginTop: "1.5rem", textAlign: "left" }}>
-              <summary
-                style={{
-                  cursor: "pointer",
-                  fontWeight: 600,
-                  color: "#991b1b",
-                }}
-              >
+            <details className={styles.details}>
+              <summary className={styles.summary}>
                 Technical Details
               </summary>
-              <pre
-                style={{
-                  background: "white",
-                  padding: "1rem",
-                  borderRadius: "6px",
-                  marginTop: "0.75rem",
-                  fontSize: "0.85rem",
-                  overflow: "auto",
-                  whiteSpace: "pre-wrap",
-                }}
-              >
+              <pre className={styles.errorContent}>
                 {this.state.error.toString()}
                 {this.state.errorInfo?.componentStack}
               </pre>
