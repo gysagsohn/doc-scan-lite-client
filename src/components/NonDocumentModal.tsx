@@ -1,11 +1,24 @@
-// src/components/NonDocumentModal.jsx
 import styles from "../styles/NonDocumentModal.module.css";
 
-export default function NonDocumentModal({ detectedType, confidence, reasoning, onContinue, onCancel }) {
+interface NonDocumentModalProps {
+  detectedType: string;
+  confidence: number;
+  reasoning: string;
+  onContinue: () => void;
+  onCancel: () => void;
+}
+
+export default function NonDocumentModal({ 
+  detectedType, 
+  confidence, 
+  reasoning, 
+  onContinue, 
+  onCancel 
+}: NonDocumentModalProps) {
   const confidencePercent = (confidence * 100).toFixed(0);
   
-  const getDetectedTypeLabel = (type) => {
-    const typeMap = {
+  const getDetectedTypeLabel = (type: string): string => {
+    const typeMap: Record<string, string> = {
       receipt: "Receipt or Invoice",
       photo: "Personal Photo",
       screenshot: "Screenshot",

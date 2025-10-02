@@ -1,8 +1,14 @@
-// src/components/DuplicateModal.jsx
-import { getDaysAgo } from "../lib/storage";
+import { DocumentData, getDaysAgo } from "../lib/storage";
 import styles from "../styles/DuplicateModal.module.css";
 
-export default function DuplicateModal({ document, onUseCached, onReprocess, onCancel }) {
+interface DuplicateModalProps {
+  document: DocumentData;
+  onUseCached: () => void;
+  onReprocess: () => void;
+  onCancel: () => void;
+}
+
+export default function DuplicateModal({ document, onUseCached, onReprocess, onCancel }: DuplicateModalProps) {
   const daysAgo = getDaysAgo(document.timestamp);
   const timeAgoText = daysAgo === 0 
     ? "today" 
@@ -17,13 +23,13 @@ export default function DuplicateModal({ document, onUseCached, onReprocess, onC
 
         <div className={styles.fileInfo}>
           <p className={styles.infoRow}>
-            <strong>File:</strong> {document.file_name}
+            <strong>File:</strong> {document.file?.file_name || document.file_name}
           </p>
           <p className={styles.infoRow}>
             <strong>Processed:</strong> {timeAgoText}
           </p>
           <p className={styles.infoRow}>
-            <strong>Size:</strong> {(document.file_size / 1024).toFixed(0)} KB
+            <strong>Size:</strong> {((document.file?.file_size || document.file_size || 0) / 1024).toFixed(0)} KB
           </p>
         </div>
 

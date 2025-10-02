@@ -1,20 +1,21 @@
-// src/components/DataManager.jsx
-import { useState, useRef, useCallback, useEffect } from "react";
-import { getAllDocuments, clearAllDocuments, saveDocument, getStorageStats } from "../lib/storage";
+import { useState, useRef, useCallback, useEffect, ChangeEvent } from "react";
+import { getAllDocuments, clearAllDocuments, saveDocument, getStorageStats, StorageStats } from "../lib/storage";
 import { documentsToCSV, csvToDocuments, downloadCSV } from "../lib/csv";
 import styles from "../styles/DataManager.module.css";
 
-export default function DataManager({ onDataChange }) {
-  const [stats, setStats] = useState(getStorageStats());
+export default function DataManager() {
+  const [stats, setStats] = useState<StorageStats>(getStorageStats());
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [importMode, setImportMode] = useState("merge");
-  const [importStatus, setImportStatus] = useState(null);
-  const fileInputRef = useRef(null);
+  const [importMode, setImportMode] = useState<"merge" | "replace">("merge");
+  const [importStatus, setImportStatus] = useState<{
+    type: "loading" | "success" | "error";
+    message: string;
+  } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refreshStats = useCallback(() => {
     setStats(getStorageStats());
-    if (onDataChange) onDataChange();
-  }, [onDataChange]);
+  }, []);
 
   useEffect(() => {
     const handleStorageUpdate = () => {
@@ -42,7 +43,7 @@ export default function DataManager({ onDataChange }) {
       downloadCSV(csvContent);
     } catch (err) {
       console.error("[Export] Error:", err);
-      alert(`Export failed: ${err.message}`);
+      alert(`Export failed: ${(err as Error).message}`);
     }
   }, []);
 
@@ -50,7 +51,7 @@ export default function DataManager({ onDataChange }) {
     fileInputRef.current?.click();
   }, []);
 
-  const handleImportFile = useCallback(async (e) => {
+  const handleImportFile = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -112,7 +113,7 @@ export default function DataManager({ onDataChange }) {
       console.error("[Import] Error:", err);
       setImportStatus({
         type: "error",
-        message: `Import failed: ${err.message}`
+        message: `Import failed: ${(err as Error).message}`
       });
       setTimeout(() => setImportStatus(null), 5000);
     }
@@ -152,7 +153,7 @@ export default function DataManager({ onDataChange }) {
           <div className={styles.statRow}>
             <span>Date range:</span>
             <strong className={styles.dateRange}>
-              {new Date(stats.oldestDate).toLocaleDateString()} - {new Date(stats.newestDate).toLocaleDateString()}
+              {new Date(stats.oldestDate).toLocaleDateString()} - {new Date(stats.newestDate!).toLocaleDateString()}
             </strong>
           </div>
         )}
@@ -182,7 +183,7 @@ export default function DataManager({ onDataChange }) {
               name="importMode"
               value="merge"
               checked={importMode === "merge"}
-              onChange={(e) => setImportMode(e.target.value)}
+              onChange={(e) => setImportMode(e.target.value as "merge" | "replace")}
               className={styles.modeRadio}
             />
             <span className={styles.modeText}>
@@ -196,7 +197,7 @@ export default function DataManager({ onDataChange }) {
               name="importMode"
               value="replace"
               checked={importMode === "replace"}
-              onChange={(e) => setImportMode(e.target.value)}
+              onChange={(e) => setImportMode(e.target.value as "merge" | "replace")}
               className={styles.modeRadio}
             />
             <span className={styles.modeText}>

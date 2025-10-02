@@ -1,16 +1,10 @@
-// src/components/WarningBanner.jsx
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import styles from "../styles/WarningBanner.module.css";
 
 export default function WarningBanner() {
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    const isDismissed = sessionStorage.getItem("warning-dismissed");
-    if (isDismissed) {
-      setDismissed(true);
-    }
-  }, []);
+  const [dismissed, setDismissed] = useState(() => 
+    sessionStorage.getItem("warning-dismissed") === "true"
+  );
 
   const handleDismiss = () => {
     sessionStorage.setItem("warning-dismissed", "true");

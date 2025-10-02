@@ -1,8 +1,9 @@
-// src/components/AdminMode.jsx
 import { useState, useEffect } from "react";
+import { useAdmin } from "../contexts/AdminContext";
 import styles from "../styles/AdminMode.module.css";
 
-export default function AdminMode({ enabled, onToggle }) {
+export default function AdminMode() {
+  const { adminMode, setAdminMode } = useAdmin();
   const [clickCount, setClickCount] = useState(0);
   const [lastClickTime, setLastClickTime] = useState(0);
   const [showActivated, setShowActivated] = useState(false);
@@ -29,21 +30,21 @@ export default function AdminMode({ enabled, onToggle }) {
     setLastClickTime(now);
 
     if (clickCount === 2) {
-      const newState = !enabled;
-      onToggle(newState);
+      const newState = !adminMode;
+      setAdminMode(newState);
       setShowActivated(true);
       setTimeout(() => setShowActivated(false), 3000);
       setClickCount(0);
     }
   };
 
-  const toastClass = `${styles.toast} ${enabled ? styles.enabled : styles.disabled}`;
+  const toastClass = `${styles.toast} ${adminMode ? styles.enabled : styles.disabled}`;
 
   return (
     <>
       {showActivated && (
         <div className={toastClass}>
-          {enabled ? "Admin Mode Enabled" : "Admin Mode Disabled"}
+          {adminMode ? "Admin Mode Enabled" : "Admin Mode Disabled"}
         </div>
       )}
 

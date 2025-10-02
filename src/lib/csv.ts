@@ -1,12 +1,6 @@
-// src/lib/csv.js
+import { DocumentData } from "./storage";
 
-/**
- * Convert documents to CSV format
- * Columns match your spec: timestamp, document_type, name_full, date_issued, date_expiry, 
- * document_number, document_number_type, issuer, file_name, mime_type, file_size, 
- * file_hash, extras_json, confidence_json, audit_json
- */
-export function documentsToCSV(documents) {
+export function documentsToCSV(documents: DocumentData[]): string {
   if (!documents || documents.length === 0) {
     throw new Error("No documents to export");
   }
@@ -30,8 +24,12 @@ export function documentsToCSV(documents) {
   ];
 
   const rows = documents.map(doc => {
-    // Handle nested file object
-    const fileObj = doc.file || {};
+    const fileObj = doc.file || {
+      file_name: "",
+      mime_type: "",
+      file_size: 0,
+      file_hash: ""
+    };
     
     return [
       doc.timestamp || "",
@@ -44,7 +42,7 @@ export function documentsToCSV(documents) {
       doc.issuer || "",
       fileObj.file_name || doc.file_name || "",
       fileObj.mime_type || doc.mime_type || "",
-      fileObj.file_size || doc.file_size || "",
+      String(fileObj.file_size || doc.file_size || ""),
       fileObj.file_hash || doc.file_hash || "",
       JSON.stringify(doc.extras || {}),
       JSON.stringify(doc.confidence || {}),
@@ -52,8 +50,7 @@ export function documentsToCSV(documents) {
     ];
   });
 
-  // Escape CSV fields
-  const escapeCsvField = (field) => {
+  const escapeCsvField = (field: string | number): string => {
     const str = String(field);
     if (str.includes('"') || str.includes(',') || str.includes('\n')) {
       return `"${str.replace(/"/g, '""')}"`;
@@ -69,21 +66,16 @@ export function documentsToCSV(documents) {
   return csvLines.join('\n');
 }
 
-/**
- * Parse CSV string back to documents array
- */
-export function csvToDocuments(csvString) {
+export function csvToDocuments(csvString: string): DocumentData[] {
   const lines = csvString.trim().split('\n');
   
   if (lines.length < 2) {
     throw new Error("CSV file is empty or invalid");
   }
 
-  // Parse header
   const headerLine = lines[0];
   const headers = parseCSVLine(headerLine);
 
-  // Validate required columns
   const requiredColumns = ["file_hash", "timestamp", "file_name"];
   const missingColumns = requiredColumns.filter(col => !headers.includes(col));
   
@@ -91,12 +83,11 @@ export function csvToDocuments(csvString) {
     throw new Error(`CSV missing required columns: ${missingColumns.join(', ')}`);
   }
 
-  // Parse data rows
-  const documents = [];
+  const documents: DocumentData[] = [];
   
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (!line) continue; // Skip empty lines
+    if (!line) continue;
 
     const values = parseCSVLine(line);
     
@@ -105,21 +96,21 @@ export function csvToDocuments(csvString) {
       continue;
     }
 
-    const doc = {};
+    const doc: DocumentData = { timestamp: "" };
     headers.forEach((header, index) => {
       const value = values[index];
       
-      // Parse JSON fields
       if (header.endsWith('_json')) {
+        const key = header.replace('_json', '') as keyof DocumentData;
         try {
-          doc[header.replace('_json', '')] = value ? JSON.parse(value) : {};
+          (doc as any)[key] = value ? JSON.parse(value) : {};
         } catch {
-          doc[header.replace('_json', '')] = {};
+          (doc as any)[key] = {};
         }
       } else if (header === 'file_size') {
-        doc[header] = value ? parseInt(value, 10) : 0;
+        (doc as any)[header] = value ? parseInt(value, 10) : 0;
       } else {
-        doc[header] = value || null;
+        (doc as any)[header] = value || null;
       }
     });
 
@@ -129,11 +120,8 @@ export function csvToDocuments(csvString) {
   return documents;
 }
 
-/**
- * Parse a single CSV line handling quotes and commas
- */
-function parseCSVLine(line) {
-  const result = [];
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
   let current = '';
   let inQuotes = false;
 
@@ -143,15 +131,12 @@ function parseCSVLine(line) {
 
     if (char === '"') {
       if (inQuotes && nextChar === '"') {
-        // Escaped quote
         current += '"';
-        i++; // Skip next quote
+        i++;
       } else {
-        // Toggle quote mode
         inQuotes = !inQuotes;
       }
     } else if (char === ',' && !inQuotes) {
-      // End of field
       result.push(current);
       current = '';
     } else {
@@ -159,16 +144,11 @@ function parseCSVLine(line) {
     }
   }
 
-  // Add last field
   result.push(current);
-
   return result;
 }
 
-/**
- * Trigger download of CSV file
- */
-export function downloadCSV(csvContent, filename = null) {
+export function downloadCSV(csvContent: string, filename?: string): void {
   const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
   const defaultFilename = `doc-scan-data-${timestamp}.csv`;
   

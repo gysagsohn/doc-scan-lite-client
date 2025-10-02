@@ -1,7 +1,7 @@
-// netlify/functions/extract.ts
 import type { Handler } from "@netlify/functions";
 import OpenAI from "openai";
 import fetch from "node-fetch";
+import { withCors } from "./utils/cors";
 
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const RAW_APPS_SCRIPT_URL = (process.env.APPS_SCRIPT_URL || "").trim();
@@ -98,18 +98,6 @@ function normalizeToISODate(s: any): string | null {
     return null;
   }
 }
-
-const withCors = (statusCode: number, body: any, reqId?: string) => ({
-  statusCode,
-  headers: {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "X-Request-ID": reqId || Date.now().toString(36),
-  },
-  body: typeof body === "string" ? body : JSON.stringify(body),
-});
 
 export const handler: Handler = async (event) => {
   const reqId = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);

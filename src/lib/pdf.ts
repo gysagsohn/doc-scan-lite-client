@@ -1,4 +1,3 @@
-// src/lib/pdf.ts
 import * as pdfjsLib from "pdfjs-dist";
 import "pdfjs-dist/build/pdf.worker.mjs";
 
@@ -7,19 +6,11 @@ import "pdfjs-dist/build/pdf.worker.mjs";
   import.meta.url
 ).toString();
 
-/**
- * Converts PDF pages to PNG data URLs with automatic downsampling
- * @param file - PDF file to convert
- * @param maxPages - Maximum number of pages to extract (default: 2)
- * @param scale - Initial render scale (default: 1.5)
- * @param maxDimension - Maximum width/height in pixels (default: 1600)
- * @returns Array of PNG data URLs
- */
 export async function pdfToPageDataURLs(
   file: File, 
   maxPages = 2, 
-  scale = 1.5,
-  maxDimension = 800
+  scale = 1.5,  // 1.5x scale provides good quality while keeping file size reasonable
+  maxDimension = 800  // 800px keeps images under OpenAI's token limits while preserving readability
 ): Promise<string[]> {
   const arrayBuf = await file.arrayBuffer();
   const pdf = await (pdfjsLib as any).getDocument({ data: arrayBuf }).promise;
@@ -31,7 +22,7 @@ export async function pdfToPageDataURLs(
     const page = await pdf.getPage(p);
     let viewport = page.getViewport({ scale });
     
-    // Downsample if dimensions exceed maxDimension
+    // Downsample if dimensions exceed maxDimension to prevent large payloads
     const maxCurrentDim = Math.max(viewport.width, viewport.height);
     if (maxCurrentDim > maxDimension) {
       const scaleFactor = maxDimension / maxCurrentDim;
@@ -50,11 +41,11 @@ export async function pdfToPageDataURLs(
 
     await page.render({ canvasContext: ctx, viewport }).promise;
     
-    // Use JPEG with 70% quality for smaller file size
+    // JPEG at 70% quality balances file size vs readability for OCR
     const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
     urls.push(dataUrl);
     
-    // Clean up
+    // Clean up canvas to prevent memory leaks
     canvas.width = 0;
     canvas.height = 0;
   }

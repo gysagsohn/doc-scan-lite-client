@@ -1,8 +1,8 @@
-// src/components/Dropzone.jsx
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, ChangeEvent, DragEvent } from "react";
 import { pdfToPageDataURLs } from "../lib/pdf";
 import { sha256File } from "../lib/hash";
-import { findDocumentByHash, saveDocument } from "../lib/storage";
+import { findDocumentByHash, saveDocument, DocumentData } from "../lib/storage";
+import { useAdmin } from "../contexts/AdminContext";
 import DuplicateModal from "./DuplicateModal";
 import NonDocumentModal from "./NonDocumentModal";
 import styles from "../styles/Dropzone.module.css";
@@ -14,24 +14,50 @@ const ACCEPT = {
 const MAX_MB = 10;
 const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/jpg", "image/webp"];
 const RATE_LIMIT_MS = 5000;
+const CONFIDENCE_THRESHOLD = 0.6;
 
-// Confidence threshold for pre-check
-const CONFIDENCE_THRESHOLD = 0.6; // If confidence < 60%, show warning modal
+interface ExtractResult {
+  ok: boolean;
+  duplicate?: boolean;
+  result?: DocumentData;
+  fromCache?: boolean;
+  sheet?: {
+    skipped?: boolean;
+    reason?: string;
+  };
+}
 
-export default function Dropzone({ adminMode = false }) {
+interface PreCheckResult {
+  is_document: boolean;
+  confidence: number;
+  detected_type: string;
+  reasoning: string;
+}
+
+interface NonDocumentState {
+  detectedType: string;
+  confidence: number;
+  reasoning: string;
+}
+
+interface PendingFile {
+  file: File;
+  images?: string[];
+  file_hash?: string;
+}
+
+export default function Dropzone() {
+  const { adminMode } = useAdmin();
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<ExtractResult | null>(null);
   const [error, setError] = useState("");
   const [fileInputKey, setFileInputKey] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [duplicateModal, setDuplicateModal] = useState(null);
-  const [nonDocumentModal, setNonDocumentModal] = useState(null);
+  const [duplicateModal, setDuplicateModal] = useState<DocumentData | null>(null);
+  const [nonDocumentModal, setNonDocumentModal] = useState<NonDocumentState | null>(null);
   const lastUploadRef = useRef(0);
-  const pendingFileRef = useRef(null);
-  const adminModeRef = useRef(adminMode);
-
-  adminModeRef.current = adminMode;
+  const pendingFileRef = useRef<PendingFile | null>(null);
 
   const reset = useCallback(() => {
     setError("");
@@ -43,12 +69,12 @@ export default function Dropzone({ adminMode = false }) {
     pendingFileRef.current = null;
   }, []);
 
-  const processFile = useCallback(async (file, forceReprocess = false, skipPreCheck = false) => {
+  const processFile = useCallback(async (file: File, forceReprocess = false, skipPreCheck = false) => {
     try {
       setBusy(true);
       setProgress("Reading file...");
 
-      let images = [];
+      let images: string[] = [];
       if (file.type === "application/pdf") {
         setProgress("Converting PDF pages to images...");
         images = await pdfToPageDataURLs(file, 2);
@@ -64,7 +90,6 @@ export default function Dropzone({ adminMode = false }) {
         return;
       }
 
-      // PRE-CHECK: Verify it's a document (unless skipped via override)
       if (!skipPreCheck) {
         setProgress("Checking if this is a valid document type...");
         
@@ -72,12 +97,11 @@ export default function Dropzone({ adminMode = false }) {
           const preCheckRes = await fetch("/.netlify/functions/pre-check", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ image: images[0] }), // Check first image only
+            body: JSON.stringify({ image: images[0] }),
           });
 
           const preCheckJson = await preCheckRes.json();
 
-          // Handle API budget errors
           if (!preCheckRes.ok) {
             if (preCheckJson.error === "insufficient_quota") {
               setError(preCheckJson.userMessage);
@@ -91,13 +115,11 @@ export default function Dropzone({ adminMode = false }) {
               return;
             }
 
-            // For other errors, warn but allow continuation
             console.warn('[PreCheck] Failed:', preCheckJson.error);
             setProgress("Pre-check failed, continuing anyway...");
           } else {
-            const { is_document, confidence, detected_type, reasoning } = preCheckJson.result;
+            const { is_document, confidence, detected_type, reasoning }: PreCheckResult = preCheckJson.result;
 
-            // If not a document OR low confidence, show warning modal
             if (!is_document || confidence < CONFIDENCE_THRESHOLD) {
               setNonDocumentModal({
                 detectedType: detected_type,
@@ -112,7 +134,6 @@ export default function Dropzone({ adminMode = false }) {
           }
         } catch (preCheckErr) {
           console.warn('[PreCheck] Network error:', preCheckErr);
-          // Continue anyway - better to process than block on pre-check failure
         }
       }
 
@@ -136,7 +157,7 @@ export default function Dropzone({ adminMode = false }) {
         throw new Error(`Images still too large after processing: ${(totalPayloadSize / 1024 / 1024).toFixed(2)}MB. Please use a smaller file.`);
       }
       
-      const skipGoogleSheets = !adminModeRef.current;
+      const skipGoogleSheets = !adminMode;
       
       const payload = {
         images,
@@ -158,28 +179,32 @@ export default function Dropzone({ adminMode = false }) {
         body: JSON.stringify(payload),
       });
 
-      const json = await res.json();
+      const json: ExtractResult = await res.json();
       
       if (!res.ok) {
-        // Handle budget errors from main extraction
-        if (json.error === "insufficient_quota") {
-          throw new Error(json.userMessage);
-        }
-        
-        if (json.error === "rate_limit_exceeded") {
-          throw new Error(json.userMessage);
+        if (json.result && 'error' in json.result) {
+          const errorResult = json.result as any;
+          if (errorResult.error === "insufficient_quota") {
+            throw new Error(errorResult.userMessage);
+          }
+          
+          if (errorResult.error === "rate_limit_exceeded") {
+            throw new Error(errorResult.userMessage);
+          }
         }
 
-        const errorMsg = json.error || "Server error";
-        const hint = json.hint ? `\n\n💡 ${json.hint}` : "";
+        const errorMsg = (json.result as any)?.error || "Server error";
+        const hint = (json.result as any)?.hint ? `\n\n${(json.result as any).hint}` : "";
         throw new Error(`${errorMsg}${hint}`);
       }
 
-      const docToSave = {
-        ...json.result,
-        timestamp: new Date().toISOString(),
-      };
-      saveDocument(docToSave);
+      if (json.result) {
+        const docToSave: DocumentData = {
+          ...json.result,
+          timestamp: new Date().toISOString(),
+        };
+        saveDocument(docToSave);
+      }
 
       setResult(json);
       setProgress("");
@@ -187,16 +212,16 @@ export default function Dropzone({ adminMode = false }) {
       setNonDocumentModal(null);
       pendingFileRef.current = null;
     } catch (e) {
-      console.error('[Upload Error]', e.message);
-      const errorMsg = String(e.message || e);
+      console.error('[Upload Error]', (e as Error).message);
+      const errorMsg = String((e as Error).message || e);
       setError(errorMsg.length > 300 ? errorMsg.slice(0, 300) + "..." : errorMsg);
       setProgress("");
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [adminMode]);
 
-  const onSelect = useCallback(async (file) => {
+  const onSelect = useCallback(async (file: File | null) => {
     reset();
     if (!file) return;
 
@@ -234,7 +259,7 @@ export default function Dropzone({ adminMode = false }) {
   const handleReprocess = useCallback(async () => {
     if (pendingFileRef.current) {
       setDuplicateModal(null);
-      await processFile(pendingFileRef.current.file, true, true); // Skip pre-check on reprocess
+      await processFile(pendingFileRef.current.file, true, true);
     }
   }, [processFile]);
 
@@ -244,11 +269,9 @@ export default function Dropzone({ adminMode = false }) {
     reset();
   }, [reset]);
 
-  // Non-document modal handlers
   const handleNonDocumentContinue = useCallback(async () => {
     if (pendingFileRef.current) {
       setNonDocumentModal(null);
-      // Skip pre-check since user overrode the warning
       await processFile(pendingFileRef.current.file, false, true);
     }
   }, [processFile]);
@@ -259,19 +282,19 @@ export default function Dropzone({ adminMode = false }) {
     reset();
   }, [reset]);
 
-  const handleDragOver = useCallback((e) => {
+  const handleDragOver = useCallback((e: DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     e.stopPropagation();
     if (!busy) setIsDragging(true);
   }, [busy]);
 
-  const handleDragLeave = useCallback((e) => {
+  const handleDragLeave = useCallback((e: DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e) => {
+  const handleDrop = useCallback((e: DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
@@ -284,7 +307,7 @@ export default function Dropzone({ adminMode = false }) {
     }
   }, [busy, onSelect]);
 
-  const handleFileInputChange = useCallback((e) => {
+  const handleFileInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     onSelect(e.target.files?.[0] || null);
   }, [onSelect]);
 
@@ -390,7 +413,7 @@ export default function Dropzone({ adminMode = false }) {
               </div>
             )}
             
-            {adminModeRef.current && !result.fromCache && (
+            {adminMode && !result.fromCache && (
               <a 
                 href="https://docs.google.com/spreadsheets/d/1BRCQE9HO3N4kUZT-3OLAUddcSqCDpFfEHBxdhferuig/edit?gid=1127136393#gid=1127136393"
                 target="_blank"
@@ -420,7 +443,7 @@ export default function Dropzone({ adminMode = false }) {
   );
 }
 
-function fileToDataURL(file) {
+function fileToDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const fr = new FileReader();
     fr.onerror = () => reject(new Error("Failed to read file"));
@@ -429,7 +452,7 @@ function fileToDataURL(file) {
   });
 }
 
-async function resizeImage(dataUrl, maxDimension = 800) {
+async function resizeImage(dataUrl: string, maxDimension = 800): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     
