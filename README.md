@@ -18,7 +18,7 @@ A lightweight, fully TypeScript React app that extracts metadata from documents 
 ### Core Functionality
 - **Drag & drop or file picker** for PDF/PNG/JPG/WEBP uploads  
 - **Client-side PDF processing** — extracts first 2 pages as images  
-- **AI metadata extraction** using OpenAI GPT-4o-mini Vision  
+- **AI metadata extraction** using OpenAI GPT-4o-mini Vision (admin only) 
 - **Direct Google Sheets integration** via Apps Script webhook  
 - **Duplicate detection** — flags re-uploads within 7 days using SHA-256 hashing  
 - **Image optimization** — auto-resizes to 800px, converts to JPEG 70%
@@ -631,7 +631,7 @@ doc-scan-lite-client/
 
 ## License
 
-MIT License - see [LICENSE](./LICENSE) for details  
+MIT License
 
 ---
 
